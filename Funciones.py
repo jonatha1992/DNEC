@@ -1,0 +1,375 @@
+
+import pandas as pd
+import re 
+import datetime
+from Parametros import *
+from datetime import datetime 
+
+
+def generar_uid_sigpol(row):
+        tipo = str(row['TIPO_CAUSA_INTERNA'])
+        uosp = str(row['UOSP'])
+        numero_parte = str(row['NUMERO_PARTE'])
+        anio = str(row['ANIO_PARTE'])
+        return tipo +"-"+ uosp + "-"+ numero_parte+"-"+anio
+
+def procesar_descripcion(row):
+    tipo = row['TIPO_PROCEDIMIENTO']
+    if tipo == "DENUNCIA":
+        return "DENUNCIA POLICIAL"
+    elif tipo == "CONTROL PREVENTIVO":
+        return f"CONTROL PREVENTIVO - {procesar_lugar(row)}"
+    elif tipo == "ORDEN DE ALLANAMIENTO":
+        return "ORDEN DE ALLANAMIENTO"
+    elif tipo == "ORDEN DE ALLANAMIENTO / DETENCIÓN":
+        return "ORDEN DE ALLANAMIENTO"
+    else:
+        return "OTRO MANDATO JUDICIAL"
+
+def procesar_tipo_procedimiento(row):
+    tipo = row['TIPO_PROCEDIMIENTO']
+    if pd.isna(tipo):
+        return ""
+    elif tipo == "DENUNCIA"  or tipo == "CONTROL PREVENTIVO" :
+        return "ORDEN POLICIAL"
+    else:
+        return "ORDEN JUDICIAL"
+
+def procesar_provincia(row):
+    provincia = row['PROVINCIA']
+    jurisdiccion = row['JURISDICCION']
+    if pd.isna(provincia):
+        return PROVINCIAS.get(jurisdiccion, provincia)
+    else:
+        return PROVINCIAS.get(provincia, provincia)
+        
+def procesar_municipio(row):
+    unidad = row['UOSP']
+    if pd.isna(unidad):
+        return ""
+    return UNIDADES_MUNICIPIOS.get(unidad, unidad)
+
+def procesar_lugar(row):
+    lugar = row['LUGAR_CATALOGADO_NIVEL_1']
+    if pd.isna(lugar):
+        return "-"
+    return  LUGARES_CATALOGADOS[lugar]
+
+def procesar_direccion(row):
+    """
+    Asigna valores y maneja el caso en que sean None o NaN para luego construir la
+    dirección basada en las condiciones.
+    Si el lugar es "FUERA DE JURISDICCION" y la ciudad es "ROSARIO", se devuelve "ROSARIO".
+    Si el lugar es "FUERA DE JURISDICCION", se construye la dirección con los valores
+    de calle, numero, ciudad y partido. Si todos los valores son NaN, devuelve una cadena vacía.
+    Si el lugar no es "FUERA DE JURISDICCION", se devuelve "-".
+    """
+    # Asignamos valores y verificamos si son NaN o None, si es así los dejamos como ""
+    lugar = row['LUGAR_CATALOGADO_NIVEL_1']
+    ciudad = str(row['CIUDAD']) if not pd.isna(row['CIUDAD']) else ""
+    calle = str(row['CALLE']) if not pd.isna(row['CALLE']) else ""
+    numero = str(row['NUMERO']) if not pd.isna(row['NUMERO']) else ""
+    partido = str(row['PARTIDO']) if not pd.isna(row['PARTIDO']) else ""
+
+    # Si después de la conversión el valor es 'nan', también lo dejamos como ""
+    ciudad = "" if ciudad.lower() == 'nan' else ciudad
+    calle = "" if calle.lower() == 'nan' else calle
+    numero = "" if numero.lower() == 'nan' else numero
+    partido = "" if partido.lower() == 'nan' else partido
+
+    # Lógica para construir la dirección basada en las condiciones
+    if lugar == "FUERA DE JURISDICCION" and ciudad == "ROSARIO":
+        direccion = "ROSARIO"
+    elif lugar == "FUERA DE JURISDICCION" and not (calle == "" and numero == "" and ciudad == "" and partido == ""):
+        direccion = f"{calle} {numero} {ciudad} {partido}".strip()
+    else:
+        direccion = "-"
+
+    return direccion
+
+
+def controlar_estado (row):
+    ursa = row['URSA']
+    unidad = row['UOSP']
+    estado = row['ESTADO_PARTE']
+    if pd.isna(unidad)  and ursa == 'RG4' and estado == 'NO DISPONIBLE ESTADISTICA':
+        return  "DISPONIBLE ESTADISTICA"
+    else:
+        return estado
+
+def leer_excel_a_df(worksheet):
+    titulos = [worksheet.cell(row=3, column=col).value for col in range(2, worksheet.max_column + 1)]
+
+    data = []
+    for row in worksheet.iter_rows(min_row=4, min_col=2, max_col=worksheet.max_column, values_only=True):
+        data.append(row)
+
+    df = pd.DataFrame(data, columns=titulos)
+    return df
+
+def procesar_causa_judicial(row):
+    # procesar los valores de las columnas, asegurándose de que no sean `None` o `NaN`
+    causa = str(row.get('CAUSAJUDICIALNUMERO', '')).strip()
+    tipo = str(row.get('TIPO_CAUSA_INTERNA', '')).strip()
+    causa_int = str(row.get('CAUSA_INTERNA_NUMERO', '')).strip()
+
+
+    # Validar si el campo 'causa' tiene un valor no deseado
+    if causa in ["", "S/D", "A/S", "N/C", "None","nan", "--", "SN°","S/N","-", "---"]:
+        # Retornar el tipo y el número de causa interna, asegurando que no haya guiones redundantes
+        resultado = f"{tipo}-{causa_int}".replace("--", "-").strip("-")
+        return resultado
+
+    # Definir los prefijos que deben ser eliminados
+    prefijos = ["NRO", "N°", "EXPTE", "EXPEDIENTE", "EXPT", "N ", '.', ':', '"', '_', '´', "`","°",""]
+    
+    # Crear una expresión regular para eliminar los prefijos
+    
+    causa = causa.strip()
+    for prefijo in prefijos:
+        causa = causa.replace(prefijo, "").strip()
+
+    # Normalizar la causa, añadiendo guion entre letras y números si es necesario
+    causa = re.sub(r'([A-Za-z]+)\s*(\d+)', r'\1-\2', causa)
+
+    # Eliminar guiones dobles o triples si existen
+    causa = re.sub(r'-{2,}', '-', causa)
+
+    return causa
+
+def filtrar_procedimientos_generales (ruta_archivo):
+    cantidad_partes_inical = 0
+    cantidad_partes = 0
+    cantidad_partes_duplicados = 0
+    cantidad_partes_no_disponible = 0
+    
+    df = pd.read_excel(ruta_archivo)
+    # df["UID"] = df["NUMERO_PARTE"].astype(str) + "/" + df["ANIO_PARTE"].astype(str)
+    df["UID"] = df.apply(generar_uid_sigpol,axis=1)
+    
+    cantidad_partes_inical = df['UID'].count()
+    cantidad_partes = df['UID'].count()
+
+    df.drop_duplicates(subset='UID', keep='first', inplace=True)
+    
+    
+    
+    cantidad_partes_duplicados = cantidad_partes - df['UID'].count()
+    cantidad_partes = df['UID'].count()
+
+    # Reemplazar valores específicos en la columna "tipo de causa"
+    df['TIPO_CAUSA_INTERNA'] = df['TIPO_CAUSA_INTERNA'].replace({
+        'RESTRICCIÓN A LA LIBERTAD': 'RL',
+        'ACTUACIÓN JUDICIAL': 'AJ',
+        'ACTUACIONES JUDICIALES': 'AJ',
+    })
+
+    df['ESTADO_PARTE'] = df.apply(controlar_estado ,axis=1).copy()
+    df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+    df['GEOREFERENCIA_X'] = df['GEOREFERENCIA_X'].fillna('-')
+    df['GEOREFERENCIA_Y'] = df['GEOREFERENCIA_Y'].fillna('-')
+    
+    df = df[df['ESTADO_PARTE'] != "NO DISPONIBLE ESTADISTICA"]
+
+    
+    df["UID"] = df.apply(generar_uid_sigpol,axis=1)
+    
+    cantidad_partes_no_disponible = cantidad_partes - df['UID'].count()
+    cantidad_partes = df['UID'].count()
+    
+    print(f"Estadistica de Partes\n")
+    print(f"Cantidad de Partes inicial: {cantidad_partes_inical}" )
+    print(f"Cantidad Duplicado: {cantidad_partes_duplicados}" )
+    print(f"Cantidad No diponible: {cantidad_partes_no_disponible}" )
+    print(f"Cantidad de Partes final: {cantidad_partes}" )
+    
+    return df
+    
+
+### funciones para el procesamiento de datos de OPERACIONES
+
+
+def procesar_unidad (row):
+    unidad = row['UNIDAD_INTERVINIENTE']
+    unidad ="UR1" if unidad in "DROPA I" else unidad
+    return  unidad
+
+def colocar_guion_espacio(texto):
+    # Limpieza inicial del texto: eliminar caracteres innecesarios y normalizar guiones
+    print("=== Inicio ===")
+    print(f"Texto original: {texto}")
+    
+    caracteres_no_deseados = ['N°', ' N', '.', ':', '-', '"', '_', '´',"`"]
+
+    # Eliminamos caracteres listados arriba en una sola expresión regular
+    texto = re.sub(r'({})'.format('|'.join(map(re.escape, caracteres_no_deseados))), '', texto)
+    
+    # Reemplazar múltiples espacios por un solo guion para normalizar los separadores
+    texto = re.sub(r'\s+', '-', texto)
+    
+    print(f"Texto después de la limpieza inicial: {texto}")
+
+    # Inicializar componentes vacíos
+    prefijo = ""
+    numero = ""
+    ubicacion = ""
+    year = ""
+    suffix = "-(1)"  # Valor por defecto del sufijo
+
+    # Extraer prefijo si está en la lista de prefijos conocidos
+    for p in PREFIJOS:
+        if texto.upper().startswith(p):
+            prefijo = p
+            texto = texto[len(p):].strip()  # Recortar el prefijo del texto
+            break
+    print(f"Prefijo encontrado: {prefijo}")
+
+
+    # Limpiar posibles espacios adicionales antes de buscar la ubicación
+    texto = texto.strip()
+
+    # Extraer ubicación si está en la lista de ubicaciones conocidas
+    for u in UBICACIONES:
+        if texto.upper().startswith(u):
+            ubicacion = u
+            texto = texto[len(u):].strip()  # Recortar la ubicación del texto
+            break
+
+    # Mejorar el chequeo para la ubicación, verificando si existe la ubicación en cualquier parte
+    if not ubicacion:
+        for u in UBICACIONES:
+            if u in texto.upper():
+                ubicacion = u
+                texto = texto.replace(u, "", 1).strip()
+                break
+    print(f"Ubicación encontrada: {ubicacion}")
+
+    # Extraer número principal
+    match_numero = re.search(r"(\d+)", texto)
+    if match_numero:
+        numero = match_numero.group(0).zfill(4)
+        texto = texto[len(match_numero.group(0)):].strip()  # Recortar el número del texto
+    print(f"Número principal encontrado: {numero}")
+    
+    # Extraer año en formato de 4 dígitos
+    match_year = re.search(r"(\d{4})", texto)
+    if match_year:
+        year = match_year.group(0)
+        texto = texto[len(year):].strip()  # Recortar el año del texto
+    print(f"Año encontrado: {year}")
+
+    # Extraer sufijo al final (número entre paréntesis)
+    match_suffix = re.search(r'\((\d+)\)$', texto)
+    if match_suffix:
+        suffix = f"-({match_suffix.group(1)})"
+    print(f"Sufijo encontrado: {suffix}")
+
+    # Formatear y retornar el texto resultante
+    resultado = f"{prefijo}-{numero}-{ubicacion}/{year}{suffix}"
+    print(f"Resultado formateado: {resultado}")
+    print("=== Fin del proceso ===")
+    return resultado
+
+def formatear_contador(texto):
+    texto_procesado = re.sub(r'-+\(\d+\)$', '', texto)
+    return texto_procesado
+
+def colocar_contador (df_operaciones, base):
+    conteo_base_datos = base['ID_OPERATIVO'].value_counts()
+    conteo_acumulado  = conteo_base_datos.to_dict()
+    df_ordenes_no_informadas = pd.DataFrame()
+    for index, row in df_operaciones.iterrows():
+        id_operativa = row['ID_OPERATIVO']
+        
+        # Verificar cuántas veces ha aparecido el ID_operativa en total hasta ahora (base + nuevos)
+        if id_operativa in conteo_acumulado:
+            conteo_acumulado[id_operativa] += 1
+        else:
+            conteo_acumulado[id_operativa] = 1
+        
+        nuevo_id_procedimiento = f"{id_operativa}-({conteo_acumulado[id_operativa]})"
+        
+        df_ordenes_no_informadas.at[index, 'ID_PROCEDIMIENTO'] = nuevo_id_procedimiento
+        
+    return df_ordenes_no_informadas
+
+def generar_uid_operaciones(row):
+    texto = str(row['ID_OPERATIVO'])
+    prefijo = ""
+    for p in PREFIJOS:
+        if texto.upper().startswith(p):
+            prefijo = p
+            texto = texto[len(p):].strip()  # Recortar el prefijo del texto
+            break
+    unidad = str(row['UNIDAD_INTERVINIENTE'])
+    fecha_completa = str(row['FECHA'])
+    fecha = fecha_completa.split()[0]  # Tomar solo la parte antes del espacio (la fecha)
+    hora = str(row['HORA']).replace(":","-")
+    conjunto = prefijo + "-" + unidad + "-" + fecha + "-" + hora
+    
+    return conjunto
+
+
+
+### funciones para el procesamiento de datos de PERSONAS
+
+
+
+
+def procesar_edad(row):
+    fecha_nacimiento = row['FECHA_NACIMIENTO']
+    if pd.isna(fecha_nacimiento):
+        return "-"
+    denuncia_fecha = row['DENUNCIAFECHA']
+    edad = (denuncia_fecha.year - fecha_nacimiento.year) - ((denuncia_fecha.month, denuncia_fecha.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
+    
+    return edad
+def procesar_sexo(row):
+    sexo = row['SEXO']
+    if sexo == 'F':
+        return 'FEMENINO'
+    else:
+        return 'MASCULINO'
+def procesar_genero(row):
+    sexo = row['SEXO']
+    if sexo == 'F':
+        return 'MUJER'
+    else:
+        return 'VARON'
+def procesar_nacionalidad(row):
+    nacionalidad = row['NACIONALIDAD1']
+    if pd.isna(nacionalidad):
+        return "-"
+    return NACIONALIADADES.get(nacionalidad, nacionalidad)
+    
+def procesar_situacion_judicial(row):
+    tipo_persona = row['TIPO_PERSONA']
+    situacion = row['SITUACION_JUDICIAL']
+    union = tipo_persona + " - " + situacion
+    return SITUACIONES_JUDICIALES.get(union, union)
+
+
+def procesar_tipo_delito(row):
+    clasificion_1 = row['CLASIFICACION_NIVEL_1']
+    clasificion_2 = row['CLASIFICACION_NIVEL_2']
+    union = clasificion_1 + " - " + clasificion_2
+    return DELITOS.get(union, union)
+
+
+def procesar_caratula(row):
+    caratula_judicial = row['CARATULAJUDICIAL']
+    caratula_interna = row['CARATULAINTERNA']
+    
+    if caratula_judicial == "" or caratula_judicial == "S/D" or caratula_judicial == "A/S" or caratula_judicial == "N/C":
+        return caratula_interna
+    else:
+        return caratula_judicial
+
+
+def procesar_juzgado(row):
+    juzgado = row['JUZGADO']
+    fiscalia = row['FISCALIA']
+    if juzgado == "":
+        return fiscalia
+    else:
+        return juzgado
