@@ -8,10 +8,10 @@ from datetime import datetime
 
 def generar_uid_sigpol(row):
         tipo = str(row['TIPO_CAUSA_INTERNA'])
-        uosp = str(row['UOSP'])
         numero_parte = str(row['NUMERO_PARTE'])
+        uosp = str(row['UOSP'])
         anio = str(row['ANIO_PARTE'])
-        return tipo +"-"+ uosp + "-"+ numero_parte+"-"+anio
+        return tipo + "-"+ numero_parte  + "-" + uosp + "-"+ anio
 
 def procesar_descripcion(row):
     tipo = row['TIPO_PROCEDIMIENTO']
@@ -157,14 +157,10 @@ def filtrar_procedimientos_generales (ruta_archivo):
     cantidad_partes_duplicados = cantidad_partes - df['UID'].count()
     cantidad_partes = df['UID'].count()
 
-    # Reemplazar valores específicos en la columna "tipo de causa"
-    df['TIPO_CAUSA_INTERNA'] = df['TIPO_CAUSA_INTERNA'].replace({
-        'RESTRICCIÓN A LA LIBERTAD': 'RL',
-        'ACTUACIÓN JUDICIAL': 'AJ',
-        'ACTUACIONES JUDICIALES': 'AJ',
-    })
 
-    df['ESTADO_PARTE'] = df.apply(controlar_estado ,axis=1).copy()
+    df['TIPO_CAUSA_INTERNA'] =  df.apply(procesar_tipo_causa_interna ,axis=1)
+    
+    df['ESTADO_PARTE'] = df.apply(controlar_estado ,axis=1)
     df['UOSP'] = df['UOSP'].fillna(df['URSA'])
     df['GEOREFERENCIA_X'] = df['GEOREFERENCIA_X'].fillna('-')
     df['GEOREFERENCIA_Y'] = df['GEOREFERENCIA_Y'].fillna('-')
@@ -271,7 +267,9 @@ def colocar_guion_espacio(texto):
     return resultado
 
 def formatear_contador(texto):
+    print(f"Texto original: {texto}")
     texto_procesado = re.sub(r'-+\(\d+\)$', '', texto)
+    print(f"Texto procesado: {texto_procesado}")
     return texto_procesado
 
 def colocar_contador (df_operaciones, base):
@@ -294,7 +292,7 @@ def colocar_contador (df_operaciones, base):
     return df_ordenes_no_informadas
 
 def generar_uid_operaciones(row):
-    texto = str(row['ID_OPERATIVO'])
+    texto = str(row['ID_PROCEDIMIENTO'])
     prefijo = ""
     for p in PREFIJOS:
         if texto.upper().startswith(p):
@@ -309,12 +307,7 @@ def generar_uid_operaciones(row):
     
     return conjunto
 
-
-
 ### funciones para el procesamiento de datos de PERSONAS
-
-
-
 
 def procesar_edad(row):
     fecha_nacimiento = row['FECHA_NACIMIENTO']
@@ -373,3 +366,72 @@ def procesar_juzgado(row):
         return fiscalia
     else:
         return juzgado
+    
+
+### funciones genericas
+
+def procesar_tipo_causa_interna(row):
+    tipo = row['TIPO_CAUSA_INTERNA']
+    if tipo == "ACTUACIÓN JUDICIAL" or tipo == "ACTUACIONES JUDICIALES":
+        return "AJ"
+    elif tipo == "RESTRICCIÓN A LA LIBERTAD":
+        return "RL"
+    else:
+        return tipo
+
+
+
+### funciones de armas 
+
+
+def procesar_cantidad_arma(row):
+    cantidad = row['CANTIDAD']
+    if pd.isna(cantidad):  # Verifica si es NaN
+        cantidad = 1.0     # Asigna 1.0 en caso de NaN
+    else:
+        cantidad = float(cantidad)  # Convierte a float sin intentar cambiar a int
+    return cantidad
+
+
+
+def procesar_observaciones_arma(row):
+    marca = str(row['MARCA']).replace("-", "")
+    print(marca)
+    calibre = str(row['CALIBRE'])
+    print(marca)
+    observaciones = "-"
+    if (marca != "nan" or marca == "") and calibre != "nan":
+        observaciones = f"MARCA: {marca} - CALIBRE: {calibre}"
+    elif  marca == "nan" and calibre != "nan":
+        observaciones = f"CALIBRE: {calibre}"
+    else:
+        observaciones = "-"
+        
+    
+    print(observaciones)
+    return observaciones
+    
+
+### funciones de objetos  
+
+def procesar_cantidad_objeto(row):
+    cantidad = row['NUMERO_PARTE']
+    if cantidad == "":
+        return ""
+    else:
+        return "MERCADERIA"
+
+
+def clasificar_tipo_objeto(row):
+    clasificacion_nivel_2, tipo_objeto, cantidad = row["CLASIFICACION_NIVEL_2"], row["TIPO_OBJETO"], row["CANTIDAD"]
+    if clasificacion_nivel_2 == "CONTRABANDO":
+        pre_tipo = f"{clasificacion_nivel_2} - {tipo_objeto}"
+    elif tipo_objeto == "OTRO":
+        pre_tipo = f"{tipo_objeto} - {clasificacion_nivel_2}"
+    else:
+        pre_tipo = tipo_objeto
+    return pre_tipo if cantidad else F"{pre_tipo} - VACIO"
+
+
+
+
