@@ -55,6 +55,25 @@ def procesar_lugar(row):
         return "-"
     return  LUGARES_CATALOGADOS[lugar]
 
+
+
+
+
+def procesar_geog(row):
+    latitud = row['GEOREFERENCIA_Y']
+    longitud = row['GEOREFERENCIA_X']
+    
+    if pd.isna(latitud) or pd.isna(longitud):
+        unidad = row['UOSP']
+        if unidad in GEOS_UNIDADES:
+            latitud = GEOS_UNIDADES[unidad]['LATITUD']
+            longitud = GEOS_UNIDADES[unidad]['LONGUITUD']
+            return [latitud,longitud]
+        else:
+            return ["-","-"]
+    else:
+        return [latitud,longitud]
+
 def procesar_direccion(row):
     """
     Asigna valores y maneja el caso en que sean None o NaN para luego construir la
@@ -98,14 +117,26 @@ def controlar_estado (row):
         return estado
 
 def leer_excel_a_df(worksheet):
-    titulos = [worksheet.cell(row=3, column=col).value for col in range(2, worksheet.max_column + 1)]
-
+    # Leer títulos desde la fila 2
+    titulos = [worksheet.cell(row=2, column=col).value for col in range(1, worksheet.max_column + 1)]
+    
+    # Leer datos desde la fila 3
     data = []
-    for row in worksheet.iter_rows(min_row=4, min_col=2, max_col=worksheet.max_column, values_only=True):
+    for row in worksheet.iter_rows(min_row=3, min_col=1, max_col=worksheet.max_column, values_only=True):
         data.append(row)
-
+    
+    # Ajustar el número de títulos para que coincidan con las columnas de datos
+    if len(titulos) < worksheet.max_column:
+        print(f"Advertencia: hay menos títulos ({len(titulos)}) que columnas en los datos ({worksheet.max_column}).")
+        titulos.extend([f"Columna_{i}" for i in range(len(titulos) + 1, worksheet.max_column + 1)])
+    elif len(titulos) > worksheet.max_column:
+        print(f"Advertencia: hay más títulos ({len(titulos)}) que columnas en los datos ({worksheet.max_column}).")
+        titulos = titulos[:worksheet.max_column]
+    
+    # Crear el DataFrame
     df = pd.DataFrame(data, columns=titulos)
     return df
+
 
 def procesar_causa_judicial(row):
     # procesar los valores de las columnas, asegurándose de que no sean `None` o `NaN`
@@ -144,9 +175,10 @@ def filtrar_procedimientos_generales (ruta_archivo):
     cantidad_partes_no_disponible = 0
     
     df = pd.read_excel(ruta_archivo)
-    # df["UID"] = df["NUMERO_PARTE"].astype(str) + "/" + df["ANIO_PARTE"].astype(str)
-    df["UID"] = df.apply(generar_uid_sigpol,axis=1)
     
+    
+    
+    df["UID"] = df.apply(generar_uid_sigpol,axis=1)
     cantidad_partes_inical = df['UID'].count()
     cantidad_partes = df['UID'].count()
 
@@ -162,8 +194,7 @@ def filtrar_procedimientos_generales (ruta_archivo):
     
     df['ESTADO_PARTE'] = df.apply(controlar_estado ,axis=1)
     df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-    df['GEOREFERENCIA_X'] = df['GEOREFERENCIA_X'].fillna('-')
-    df['GEOREFERENCIA_Y'] = df['GEOREFERENCIA_Y'].fillna('-')
+
     
     df = df[df['ESTADO_PARTE'] != "NO DISPONIBLE ESTADISTICA"]
 
@@ -396,9 +427,7 @@ def procesar_cantidad_arma(row):
 
 def procesar_observaciones_arma(row):
     marca = str(row['MARCA']).replace("-", "")
-    print(marca)
     calibre = str(row['CALIBRE'])
-    print(marca)
     observaciones = "-"
     if (marca != "nan" or marca == "") and calibre != "nan":
         observaciones = f"MARCA: {marca} - CALIBRE: {calibre}"
@@ -406,21 +435,8 @@ def procesar_observaciones_arma(row):
         observaciones = f"CALIBRE: {calibre}"
     else:
         observaciones = "-"
-        
-    
-    print(observaciones)
     return observaciones
     
-
-### funciones de objetos  
-
-def procesar_cantidad_objeto(row):
-    cantidad = row['NUMERO_PARTE']
-    if cantidad == "":
-        return ""
-    else:
-        return "MERCADERIA"
-
 
 def clasificar_tipo_objeto(row):
     clasificacion_nivel_2, tipo_objeto, cantidad = row["CLASIFICACION_NIVEL_2"], row["TIPO_OBJETO"], row["CANTIDAD"]
@@ -435,3 +451,98 @@ def clasificar_tipo_objeto(row):
 
 
 
+def clasificar_tipo_vehiculo(row):
+    dominio = row["VEHICULO_DOMINIO"].replace(" ", "")
+    modelo = str(row["VEHICULO_MODELO"]).upper()  # Convertir a mayúsculas para evitar problemas de coincidencia
+    print(f"Dominio: {dominio}, Modelo: {modelo}")
+    # Definir patrones para cada tipo de vehículo
+    patrones = {
+        "AUTO": r'^[A-Z]{3}\d{3}$|^[A-Z]{2}\d{3}[A-Z]{2}$',  # Formatos ABC123 o AB123CD
+        "MOTO": r'^[A-Z]{2}\d{3}$',                          # Formato AB123
+        "CUATRICICLO": r'^[A-Z]{2}\d{3}$',                   # Similar a las motos
+        "AVION": r'^(LV|LQ)-[A-Z]{3}$'                       # Formato LV-XXX o LQ-XXX
+    }
+    
+    camionetas = [
+        "RANGER", "HILUX", "D-MAX", "ALASKAN", "TROOPER",
+        "PICK UP", "AMAROK", "FRONTIER", "F-100", "RAM",
+        "TRANSIT", "MASTER", "SPRINTER", "BOXER", "DUCATO", "SW4"
+    ]
+    
+    
+    # Verificar si el modelo es una camioneta
+    palabras_modelo = modelo.split()
+    for palabra in palabras_modelo:
+        if palabra in camionetas:
+            print(f"Palabra detectada en camionetas: {palabra} - Clasificación detectada: CAMIONETA")
+            return "CAMIONETA"
+    
+    # Intentar clasificar el dominio según los patrones
+    
+    for tipo, patron in patrones.items():
+        if re.match(patron, dominio):
+            return tipo
+        
+        
+    return "VERIFIQUE"
+
+
+def observaciones_vehiculo(row):
+    dominio = row["VEHICULO_DOMINIO"]
+    marca = row["VEHICULO_MARCA"]
+    modelo = row["VEHICULO_MODELO"]
+
+
+    return f"{marca} - {modelo} - {dominio} "
+
+
+
+
+def  clasificar_tipo_sustancia(row):
+    tipo_sustancia = row['TIPO_ESTUPEFACIENTE']
+    return TIPO_SUSTANCIA.get(tipo_sustancia, tipo_sustancia)
+
+
+def clasificar_medida(row):
+    """
+    Clasifica la medida de una sustancia según el tipo de sustancia
+    
+    Parameters
+    ----------
+    row : pandas Series
+        Fila de un DataFrame que contiene las columnas 'UNIDADES', 'PESO' y 'TIPO_ESTUPEFACIENTE'
+    
+    Returns
+    -------
+    list
+        Lista de dos elementos, donde el primer elemento es la cantidad y el segundo es la unidad de medida.
+        Si no se puede clasificar, devuelve [0, "VERIFIQUE"]
+    """
+    
+    unidad = row['UNIDADES']
+    peso = row['PESO']
+    tipo_sustancia = row['TIPO_ESTUPEFACIENTE']
+    tipo_sustancia = TIPO_SUSTANCIA.get(tipo_sustancia, tipo_sustancia)
+    
+    if tipo_sustancia == "COCAINA":
+        if pd.isna(peso):
+            return [unidad, "UNIDADES"]
+        return [peso, "GRAMOS"]
+    elif tipo_sustancia == "MARIHUANA":
+        if pd.isna(peso):
+            return [unidad, "UNIDADES"]
+        return [peso, "GRAMOS"]
+    elif pd.isna(unidad) and pd.isna(peso):
+        return [0, "VERIFIQUE"]
+    else:
+        return [unidad, "UNIDADES"]
+
+
+def observaciones_sustancia(row):
+    tipo_sustancia = row["TIPO_ESTUPEFACIENTE"]
+    tipo_sustancia2 = TIPO_SUSTANCIA.get(tipo_sustancia, tipo_sustancia)
+    
+    if tipo_sustancia2 == "OTROS":
+        return f"{tipo_sustancia}" 
+    else:
+        return  "-"
