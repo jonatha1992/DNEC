@@ -67,7 +67,7 @@ def procesar_geog(row):
         unidad = row['UOSP']
         if unidad in GEOS_UNIDADES:
             latitud = GEOS_UNIDADES[unidad]['LATITUD']
-            longitud = GEOS_UNIDADES[unidad]['LONGUITUD']
+            longitud = GEOS_UNIDADES[unidad]['LONGITUD']
             return [latitud,longitud]
         else:
             return ["-","-"]
@@ -211,10 +211,8 @@ def filtrar_procedimientos_generales (ruta_archivo):
     print(f"Cantidad de Partes final: {cantidad_partes}" )
     
     return df
-    
 
 ### funciones para el procesamiento de datos de OPERACIONES
-
 
 def procesar_unidad (row):
     unidad = row['UNIDAD_INTERVINIENTE']
@@ -372,13 +370,11 @@ def procesar_situacion_judicial(row):
     union = tipo_persona + " - " + situacion
     return SITUACIONES_JUDICIALES.get(union, union)
 
-
 def procesar_tipo_delito(row):
     clasificion_1 = row['CLASIFICACION_NIVEL_1']
     clasificion_2 = row['CLASIFICACION_NIVEL_2']
     union = clasificion_1 + " - " + clasificion_2
     return DELITOS.get(union, union)
-
 
 def procesar_caratula(row):
     caratula_judicial = row['CARATULAJUDICIAL']
@@ -389,7 +385,6 @@ def procesar_caratula(row):
     else:
         return caratula_judicial
 
-
 def procesar_juzgado(row):
     juzgado = row['JUZGADO']
     fiscalia = row['FISCALIA']
@@ -398,7 +393,6 @@ def procesar_juzgado(row):
     else:
         return juzgado
     
-
 ### funciones genericas
 
 def procesar_tipo_causa_interna(row):
@@ -409,8 +403,6 @@ def procesar_tipo_causa_interna(row):
         return "RL"
     else:
         return tipo
-
-
 
 ### funciones de armas 
 
