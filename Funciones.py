@@ -205,7 +205,7 @@ def filtrar_procedimientos_generales (ruta_archivo):
     cantidad_partes = df['UID'].count()
     
     print(f"Estadistica de Partes\n")
-    print(f"Cantidad de Partes inicial: {cantidad_partes_inical}" )
+    print(f"Total de Partes: {cantidad_partes}"  )
     print(f"Cantidad Duplicado: {cantidad_partes_duplicados}" )
     print(f"Cantidad No diponible: {cantidad_partes_no_disponible}" )
     print(f"Cantidad de Partes final: {cantidad_partes}" )
@@ -214,6 +214,40 @@ def filtrar_procedimientos_generales (ruta_archivo):
 
 ### funciones para el procesamiento de datos de OPERACIONES
 
+
+def procesar_geog_oper(row):
+    latitud = str(row['LATITUD'])
+    longitud = str(row['LONGITUD'])
+    
+    if latitud == "N/C" or longitud == "N/C" or latitud == "-" or longitud == "NO CORRESPONDE" or longitud == "S/D" or latitud == "CONTROLES ALEATORIOS Y DINAMICOS":
+        return ["-","-"]
+    
+    # Verificar si ya tiene punto decimal
+    if '.' in latitud:
+        latitud = latitud
+    else:
+        latitud = latitud[:3] + '.' + latitud[3:]
+        
+    if '.' in longitud:
+        longitud = longitud
+    else:
+        longitud = longitud[:3] + '.' + longitud[3:]
+    
+    if pd.isna(latitud) or pd.isna(longitud):
+        unidad = row['UOSP']
+        if unidad in GEOS_UNIDADES:
+            latitud = GEOS_UNIDADES[unidad]['LATITUD']
+            longitud = GEOS_UNIDADES[unidad]['LONGITUD']
+            return [latitud,longitud]
+        else:
+            return ["-","-"]
+        
+    elif latitud == "N/C" or longitud == "N/C" or latitud == "-" or longitud == "NO CORRESPONDE" or longitud == "S/D":
+        return ["-","-"]
+    else:
+        return [latitud,longitud]
+    
+    
 def procesar_unidad (row):
     unidad = row['UNIDAD_INTERVINIENTE']
     unidad ="UR1" if unidad in "DROPA I" else unidad
@@ -430,6 +464,8 @@ def procesar_observaciones_arma(row):
     return observaciones
     
 
+
+### funciones de objetos 
 def clasificar_tipo_objeto(row):
     clasificacion_nivel_2, tipo_objeto, cantidad = row["CLASIFICACION_NIVEL_2"], row["TIPO_OBJETO"], row["CANTIDAD"]
     if clasificacion_nivel_2 == "CONTRABANDO":
@@ -442,7 +478,7 @@ def clasificar_tipo_objeto(row):
 
 
 
-
+### funciones de vehiculos 
 def clasificar_tipo_vehiculo(row):
     dominio = row["VEHICULO_DOMINIO"].replace(" ", "")
     modelo = str(row["VEHICULO_MODELO"]).upper()  # Convertir a mayúsculas para evitar problemas de coincidencia
@@ -489,7 +525,7 @@ def observaciones_vehiculo(row):
 
 
 
-
+### funciones de narcotrafico 
 def  clasificar_tipo_sustancia(row):
     tipo_sustancia = row['TIPO_ESTUPEFACIENTE']
     return TIPO_SUSTANCIA.get(tipo_sustancia, tipo_sustancia)
