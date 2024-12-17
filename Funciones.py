@@ -1,9 +1,37 @@
 
+import glob
+import os
 import pandas as pd
 import re 
 import datetime
 from Parametros import *
 from datetime import datetime 
+
+
+def obtener_ruta_bajada(nombre_clave):
+    """
+    Busca la ruta de un archivo relacionado con la clave proporcionada que puede tener variaciones en el nombre.
+    
+    Args:
+        nombre_clave (str): Nombre base del archivo a buscar (sin extensión).
+
+    Returns:
+        str: Ruta del primer archivo encontrado que coincide con el patrón.
+    """
+    base = "bajadas"
+    # Patrón para buscar archivos similares (puede incluir variaciones)
+    patron_busqueda = os.path.join(base, f"*{nombre_clave}*.xls*")
+
+    # Buscar archivos que coincidan con el patrón
+    archivos_encontrados = glob.glob(patron_busqueda)
+    
+    if not archivos_encontrados:
+        raise FileNotFoundError(f"No se encontró ningún archivo con el nombre '{nombre_clave}' en la carpeta '{base}'.")
+
+    archivo_encontrado = archivos_encontrados[0]  # Tomar el primer archivo encontrado
+    print(f"Archivo encontrado: {archivo_encontrado}")
+    
+    return archivo_encontrado
 
 
 def generar_uid_sigpol(row):
