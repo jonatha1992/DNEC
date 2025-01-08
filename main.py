@@ -9,6 +9,7 @@ from PyQt6.QtCore import QAbstractTableModel, Qt
 from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMessageBox
 import pandas as pd
 from pathlib import Path
+
 class FileTableModel(QAbstractTableModel):
     def __init__(self, files=None):
         super(FileTableModel, self).__init__()
