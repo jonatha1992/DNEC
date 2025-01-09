@@ -15,7 +15,7 @@ def obtener_ruta_bajada(nombre_clave):
         nombre_clave (str): Nombre base del archivo a buscar (sin extensión).
 
     Returns:
-        str: Ruta del primer archivo encontrado que coincide con el patrón.
+        str: Ruta del primer archivo encontrado que coincide con el patrón o una cadena vacía si no se encuentra.
     """
     base = "bajadas"
     # Patrón para buscar archivos similares (puede incluir variaciones)
@@ -25,7 +25,8 @@ def obtener_ruta_bajada(nombre_clave):
     archivos_encontrados = glob.glob(patron_busqueda)
     
     if not archivos_encontrados:
-        raise FileNotFoundError(f"No se encontró ningún archivo con el nombre '{nombre_clave}' en la carpeta '{base}'.")
+        print(f"No se encontró ningún archivo con el nombre '{nombre_clave}' en la carpeta '{base}'.")
+        return ""
 
     archivo_encontrado = archivos_encontrados[0]  # Tomar el primer archivo encontrado
     print(f"Archivo encontrado: {archivo_encontrado}")
