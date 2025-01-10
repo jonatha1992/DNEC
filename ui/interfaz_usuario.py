@@ -82,6 +82,15 @@ class Ui_MainWindow(object):
         self.tableView = QtWidgets.QTableView(parent=self.centralwidget)
         self.tableView.setGeometry(QtCore.QRect(220, 60, 401, 171))
         self.tableView.setObjectName("tableView")
+            # Configurar tabla
+        self.tableView.setSizePolicy(
+        QtWidgets.QSizePolicy.Policy.Expanding,
+        QtWidgets.QSizePolicy.Policy.Expanding
+                )
+        self.tableView.horizontalHeader().setStretchLastSection(True)
+    
+        
+        
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)

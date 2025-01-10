@@ -17,15 +17,22 @@ class FileTableModel(QAbstractTableModel):
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            file = self._files[index.row()]
-            if index.column() == 0:
-                return Path(file).name
-            elif index.column() == 1:
-                df = pd.read_excel(file)
-                return df['DENUNCIAFECHA'].min().strftime('%Y-%m-%d')
-            elif index.column() == 2:
-                df = pd.read_excel(file)
-                return df['DENUNCIAFECHA'].max().strftime('%Y-%m-%d')
+            try:
+                file = self._files[index.row()]
+                if index.column() == 0:
+                    return Path(file).name
+                elif index.column() in (1, 2):
+                    df = pd.read_excel(file)
+                    if 'DENUNCIAFECHA' in df.columns:
+                        if index.column() == 1:
+                            return df['DENUNCIAFECHA'].min().strftime('%d-%m-%Y')
+                        else:
+                            return df['DENUNCIAFECHA'].max().strftime('%d-%m-%Y')
+                    else:
+                        return "S/D"
+            except Exception as e:
+                return "Error al leer archivo"
+        return None
 
     def rowCount(self, index):
         return len(self._files)
@@ -35,13 +42,14 @@ class FileTableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            if orientation == Qt.Orientation.Horizontal:
-                if section == 0:
-                    return "Archivo"
-                elif section == 1:
-                    return "Fecha Inicial"
-                elif section == 2:
-                    return "Fecha Final"
+            if orientation == Qt.Orientation.Horizontal:  
+                headers = {
+                    0: "Archivo",
+                    1: "Fecha Inicial",
+                    2: "Fecha Final"
+                }
+                return headers.get(section, "")
+        return None
 
 
 
@@ -73,10 +81,22 @@ class MainWindow(QMainWindow):
                 "Excel Files (*.xlsx *.xls)"
             )
             if files:
+                # Filtrar archivos ya existentes
                 new_files = [f for f in files if f not in self.file_list_model]
+                
+                # Actualizar la lista de archivos
                 self.file_list_model.extend(new_files)
-                self.table_model.layoutChanged.emit()
+                
+                # Actualizar el modelo
+                self.table_model = FileTableModel(self.file_list_model)
+                self.ui.tableView.setModel(self.table_model)
+                
+                # Actualizar etiqueta de estado
                 self.ui.status_label.setText(f"Archivos seleccionados: {len(self.file_list_model)}")
+                
+                # Emitir señal de cambio
+                self.table_model.layoutChanged.emit()
+                
         except Exception as e:
             self.show_error("Error al seleccionar archivos", str(e))
             
