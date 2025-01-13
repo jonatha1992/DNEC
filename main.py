@@ -1,15 +1,10 @@
 from pathlib import Path
-from turtle import pd
+import pandas as pd
 from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
-from PyQt6.QtCore import QStringListModel
+from PyQt6.QtCore import QAbstractTableModel, Qt
 from ui.interfaz_usuario import Ui_MainWindow
 from ui.controlador import Controlador
 import sys
-from PyQt6.QtCore import QAbstractTableModel, Qt
-from PyQt6.QtWidgets import QMainWindow, QFileDialog, QMessageBox
-import pandas as pd
-from pathlib import Path
-
 class FileTableModel(QAbstractTableModel):
     def __init__(self, files=None):
         super(FileTableModel, self).__init__()
@@ -17,39 +12,39 @@ class FileTableModel(QAbstractTableModel):
 
     def data(self, index, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            try:
-                file = self._files[index.row()]
-                if index.column() == 0:
-                    return Path(file).name
-                elif index.column() in (1, 2):
-                    df = pd.read_excel(file)
-                    if 'DENUNCIAFECHA' in df.columns:
-                        if index.column() == 1:
-                            return df['DENUNCIAFECHA'].min().strftime('%d-%m-%Y')
-                        else:
-                            return df['DENUNCIAFECHA'].max().strftime('%d-%m-%Y')
-                    else:
-                        return "S/D"
-            except Exception as e:
-                return "Error al leer archivo"
-        return None
+            file = self._files[index.row()]
+            if index.column() == 0:
+                return Path(file).name
+            
+            skip_rows = 1 if 'OPER' in Path(file).name.upper() else 0
+            df = pd.read_excel(file, skiprows=skip_rows)
+            date_column = 'DENUNCIAFECHA' if 'DENUNCIAFECHA' in df.columns else 'FECHA'
+            
+            if index.column() in [1, 2]:
+                if date_column in df.columns:
+                    date_value = df[date_column].min() if index.column() == 1 else df[date_column].max()
+                    return date_value.strftime('%d-%m-%Y')
+                return "S/D"
+            elif index.column() == 3:
+                return len(df)
 
     def rowCount(self, index):
         return len(self._files)
 
     def columnCount(self, index):
-        return 3
+        return 4
 
     def headerData(self, section, orientation, role):
         if role == Qt.ItemDataRole.DisplayRole:
-            if orientation == Qt.Orientation.Horizontal:  
-                headers = {
-                    0: "Archivo",
-                    1: "Fecha Inicial",
-                    2: "Fecha Final"
-                }
-                return headers.get(section, "")
-        return None
+            if orientation == Qt.Orientation.Horizontal:
+                if section == 0:
+                    return "Archivo"
+                elif section == 1:
+                    return "Fecha Inicial"
+                elif section == 2:
+                    return "Fecha Final"
+                elif section == 3:
+                    return "Filas"
 
 
 
@@ -60,19 +55,21 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.controlador = Controlador()
         
+        # Inicializar lista de archivos y modelo
+        self.file_list_model = []
+        self.table_model = FileTableModel(self.file_list_model)
+        
+        # Configurar TableView
+        self.ui.tableView.setModel(self.table_model)
+        self.ui.tableView.horizontalHeader().setStretchLastSection(True)
+        
         # Conectar señales
         self.ui.btn_select_files.clicked.connect(self.select_files)
         self.ui.btn_process.clicked.connect(self.process_data)
         self.ui.btn_save.clicked.connect(self.save_results)
         self.ui.btn_delete.clicked.connect(self.delete_files)
-        
-        # Inicializar modelo para la lista
-        self.file_list_model = []
-        self.table_model = FileTableModel(self.file_list_model)
-        self.ui.tableView.setModel(self.table_model)
-        
+
     def select_files(self):
-        """Permite seleccionar los archivos de entrada"""
         try:
             files, _ = QFileDialog.getOpenFileNames(
                 self,
@@ -81,20 +78,13 @@ class MainWindow(QMainWindow):
                 "Excel Files (*.xlsx *.xls)"
             )
             if files:
-                # Filtrar archivos ya existentes
-                new_files = [f for f in files if f not in self.file_list_model]
-                
-                # Actualizar la lista de archivos
-                self.file_list_model.extend(new_files)
-                
-                # Actualizar el modelo
+                # Actualizar lista y modelo
+                self.file_list_model.extend(files)
                 self.table_model = FileTableModel(self.file_list_model)
                 self.ui.tableView.setModel(self.table_model)
-                
-                # Actualizar etiqueta de estado
                 self.ui.status_label.setText(f"Archivos seleccionados: {len(self.file_list_model)}")
                 
-                # Emitir señal de cambio
+                # Forzar actualización visual
                 self.table_model.layoutChanged.emit()
                 
         except Exception as e:
@@ -103,12 +93,15 @@ class MainWindow(QMainWindow):
     def delete_files(self):
         """Elimina los archivos seleccionados de la tabla"""
         try:
-            selected_indexes = self.ui.tableView.selectionModel().selectedRows()
+            selected_indexes = self.ui.tableView.selectionModel().selectedIndexes()
             if not selected_indexes:
                 raise Exception("No se han seleccionado archivos para eliminar")
             
             selected_files = [self.file_list_model[index.row()] for index in selected_indexes]
             self.file_list_model = [f for f in self.file_list_model if f not in selected_files]
+            self.ui.tableView.clearSelection()
+            self.table_model = FileTableModel(self.file_list_model)
+            self.ui.tableView.setModel(self.table_model)
             self.table_model.layoutChanged.emit()
         except Exception as e:
             self.show_error("Error al eliminar archivos", str(e))
