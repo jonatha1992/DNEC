@@ -68,28 +68,52 @@ class MainWindow(QMainWindow):
         self.ui.btn_process.clicked.connect(self.process_data)
         self.ui.btn_save.clicked.connect(self.save_results)
         self.ui.btn_delete.clicked.connect(self.delete_files)
+        
+        self.ui.progressBar.setValue(0)
+        self.ui.progressBar.setVisible(False)
 
     def select_files(self):
         try:
+            self.ui.progressBar.setVisible(True)
+            self.ui.progressBar.setValue(0)
+            self.ui.label_status_process.setText("Seleccionando archivos...")
+            
             files, _ = QFileDialog.getOpenFileNames(
                 self,
                 "Seleccionar archivos",
                 "",
                 "Excel Files (*.xlsx *.xls)"
             )
+            
             if files:
-                # Actualizar lista y modelo
-                self.file_list_model.extend(files)
+                total_files = len(files)
+                for i, file in enumerate(files, 1):
+                    # Actualizar progreso
+                    progress = int((i / total_files) * 90)  # De 10 a 100
+                    self.ui.progressBar.setValue(progress)
+                    self.ui.label_status_process.setText(f"Cargando archivo {i} de {total_files}...")
+                    
+                    # Agregar archivo a la lista
+                    self.file_list_model.append(file)
+                
+                # Actualizar tabla
                 self.table_model = FileTableModel(self.file_list_model)
                 self.ui.tableView.setModel(self.table_model)
                 self.ui.status_label.setText(f"Archivos seleccionados: {len(self.file_list_model)}")
-                
-                # Forzar actualización visual
                 self.table_model.layoutChanged.emit()
                 
+                # Finalizar progreso
+                self.ui.progressBar.setValue(100)
+                self.ui.label_status_process.setText("Archivos cargados correctamente")
+                self.ui.progressBar.setVisible(False)
+            else:
+                self.ui.progressBar.setVisible(False)
+                self.ui.label_status_process.setText("")
+                
         except Exception as e:
+            self.ui.progressBar.setVisible(False)
             self.show_error("Error al seleccionar archivos", str(e))
-            
+
     def delete_files(self):
         """Elimina los archivos seleccionados de la tabla"""
         try:
