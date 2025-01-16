@@ -1,8 +1,4 @@
 /bajadas
-<<<<<<< HEAD
-=======
-/data
 /db
 /informes
-.env
->>>>>>> ui_test
+/__pycache__
