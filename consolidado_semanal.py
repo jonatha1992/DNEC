@@ -1,31 +1,24 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# # LIBRERIAS 
-# 
-# * Tener en cuenta bajadas de Procedimientos, Personas Armas, Divisas , vehiculos (secuestrados, ministerio), Narcotrafico general,Objetos y pegar en la carpeta bajadas de fecha del primero del 1 del mes en informar hasta fecha del informe 
-
-# ### IMPORTACIÓN DE LIBREARIAS
-# 
-
-# In[1]:
-
-
+import sys
 import pandas as pd
-from  Parametros import * 
-from  Funciones import * 
-from openpyxl import load_workbook , Workbook
+from Parametros import *
+from Funciones import *
+from openpyxl import load_workbook, Workbook
 import os
 from datetime import datetime
 from openpyxl.styles import Alignment
 
-# Configuración para evitar el FutureWarning
-pd.set_option('future.no_silent_downcasting', True)
 
 
-# ### RUTAS
+# Global variables at module level
+FECHA_MINIMA = None 
+FECHA_MAYOR = None
+ACTUALIZAR_BASE = True
+VERIFICAR_CON_BASE = True
+ARCHIVOS = dict
 
-# In[2]:
+
+
 
 
 PATH_BASE = 'db/base_informada.xlsx'
@@ -47,11 +40,6 @@ PATH_TRATA =  obtener_ruta_bajada('trata')
 # In[3]:
 
 
-FECHA_MINIMA = '11-12-2024'
-FECHA_MAYOR = '17-12-2024'
-
-VERIFICAR_CON_BASE = False
-ACTUALIZAR_BASE = False
 
 CONTADOR={
     "OPERATIVOS_BASE":0,
@@ -147,10 +135,10 @@ df_procedimientos['LATITUD'] = df_procedimientos['LATITUD'].astype(str).str.repl
 df_procedimientos['LONGITUD'] = df_procedimientos['LONGITUD'].astype(str).str.replace(',', '.')
 
 df_procedimientos_completado = df_procedimientos[['FUERZA_INTERVINIENTE', 'ID_OPERATIVO', 'ID_PROCEDIMIENTO',
-                                     'UNIDAD_INTERVINIENTE', 'DESCRIPCIÓN', 'TIPO_INTERVENCION',
-                                     'PROVINCIA', 'DEPARTAMENTO O PARTIDO', 'LOCALIDAD', 'DIRECCION',
-                                     'ZONA_SEGURIDAD_FRONTERAS', 'PASO_FRONTERIZO', 'LATITUD', 'LONGITUD',
-                                     'FECHA', 'HORA', 'OTRAS AGENCIAS INTERVINIENTES', 'Observaciones - Detalles']]
+                                    'UNIDAD_INTERVINIENTE', 'DESCRIPCIÓN', 'TIPO_INTERVENCION',
+                                    'PROVINCIA', 'DEPARTAMENTO O PARTIDO', 'LOCALIDAD', 'DIRECCION',
+                                    'ZONA_SEGURIDAD_FRONTERAS', 'PASO_FRONTERIZO', 'LATITUD', 'LONGITUD',
+                                    'FECHA', 'HORA', 'OTRAS AGENCIAS INTERVINIENTES', 'Observaciones - Detalles']]
 
 print(df_procedimientos_completado.nunique())
 
@@ -481,8 +469,8 @@ if CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
 
 
 excel_bajada_operaciones = pd.read_excel(PATH_OPERACIONES, 
-                                         sheet_name="ORDEN_SERVICIOS", 
-                                         skiprows=1)
+                                        sheet_name="ORDEN_SERVICIOS", 
+                                        skiprows=1)
 
 CONTADOR['BAJADA_ORDEN_SERVICIOS'] = len(excel_bajada_operaciones)
 # Usar .strftime('%H:%M') en cada valor para obtener solo la hora y el minuto
@@ -513,10 +501,10 @@ df_operaciones[['LATITUD', 'LONGITUD']] = excel_bajada_operaciones.apply(procesa
 
 
 df_operaciones_completado = df_operaciones[['FUERZA_INTERVINIENTE', 'ID_OPERATIVO', 'ID_PROCEDIMIENTO',
-                                     'UNIDAD_INTERVINIENTE', 'DESCRIPCIÓN', 'TIPO_INTERVENCION',
-                                     'PROVINCIA', 'DEPARTAMENTO O PARTIDO', 'LOCALIDAD', 'DIRECCION',
-                                     'ZONA_SEGURIDAD_FRONTERAS', 'PASO_FRONTERIZO', 'LATITUD', 'LONGITUD',
-                                     'FECHA', 'HORA', 'OTRAS AGENCIAS INTERVINIENTES', 'Observaciones - Detalles']]
+                                    'UNIDAD_INTERVINIENTE', 'DESCRIPCIÓN', 'TIPO_INTERVENCION',
+                                    'PROVINCIA', 'DEPARTAMENTO O PARTIDO', 'LOCALIDAD', 'DIRECCION',
+                                    'ZONA_SEGURIDAD_FRONTERAS', 'PASO_FRONTERIZO', 'LATITUD', 'LONGITUD',
+                                    'FECHA', 'HORA', 'OTRAS AGENCIAS INTERVINIENTES', 'Observaciones - Detalles']]
 
 
 
@@ -920,4 +908,25 @@ if ACTUALIZAR_BASE:
 
     
 print("\n".join(f"{k}: {v}" for k, v in CONTADOR.items()))
+
+def procesar_consolidado_semanal(archivos : dict , **kwargs) -> bool:
+    
+    FECHA_MINIMA = kwargs.get("fecha_minima")
+    FECHA_MINIMA = kwargs.get("fecha_minima")
+    FECHA_MINIMA = kwargs.get("fecha_minima")
+    FECHA_MINIMA = kwargs.get("fecha_minima")
+    
+    
+    
+    if not FECHA_MINIMA or not FECHA_MAYOR:
+        raise Exception("Las fechas no están configuradas")
+
+    try:
+        
+        
+        
+        return True  # o retornar algún resultado específico
+    except Exception as e:
+        raise Exception(f"Error en procesamiento del consolidado: {str(e)}")
+
 
