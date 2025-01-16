@@ -2,3 +2,4 @@
 /db
 /informes
 /__pycache__
+.env
