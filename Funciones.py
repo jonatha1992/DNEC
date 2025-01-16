@@ -450,11 +450,9 @@ def procesar_caratula(row):
 def procesar_juzgado(row):
     juzgado = row['JUZGADO']
     fiscalia = row['FISCALIA']
-    if juzgado == "":
+    if pd.isna(juzgado) or juzgado == "S/D" or juzgado == "N/C":
         return fiscalia
-    else:
-        return juzgado
-    
+    return juzgado
 ### funciones genericas
 
 def procesar_tipo_causa_interna(row):
