@@ -458,9 +458,16 @@ class Controlador(QObject):
         try:
             # Crear archivo Excel
             wb = Workbook()
+<<<<<<< HEAD
             wb.create_sheet("PROCEDIMIENTOS")
             hoja_proc = wb["PROCEDIMIENTOS"]
             
+=======
+            
+            # Hoja de Procedimientos
+            wb.create_sheet("PROCEDIMIENTOS")
+            hoja_proc = wb["PROCEDIMIENTOS"]
+>>>>>>> parent of 5f289a8 (eliminar archivos de interfaz de usuario innecesarios)
             for row in dataframe_to_rows(self.df_procedimientos, index=False, header=True):
                 hoja_proc.append(row)
 
