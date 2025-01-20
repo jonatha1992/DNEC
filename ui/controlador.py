@@ -458,10 +458,9 @@ class Controlador(QObject):
         try:
             # Crear archivo Excel
             wb = Workbook()
-            
-            # Hoja de Procedimientos
             wb.create_sheet("PROCEDIMIENTOS")
             hoja_proc = wb["PROCEDIMIENTOS"]
+            
             for row in dataframe_to_rows(self.df_procedimientos, index=False, header=True):
                 hoja_proc.append(row)
 
