@@ -4,8 +4,14 @@ import pandas as pd
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Alignment
 from PyQt6.QtCore import QObject, pyqtSignal
-
 from Funciones import *
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+from openpyxl.utils import get_column_letter
+
+
+BASE_PATH = 'db/base_informada.xlsx'
+TEMPLATE_PATH = 'models/modelo_informe.xlsx'
+OUTPUT_PATH = 'informes/'
 
 class Controlador(QObject):
     # Señales para comunicar progreso
@@ -18,7 +24,6 @@ class Controlador(QObject):
         self.archivos = {}
         self.fecha_inicial = None
         self.fecha_final = None
-        self.actualizar_base = True
         self.verificar_base = True
         self.CONTADOR = self.inicializar_contador()
         
@@ -81,8 +86,7 @@ class Controlador(QObject):
         
         return True
 
-    def iniciar_procesamiento(self, archivos, fecha_inicial, fecha_final, 
-                            actualizar_base=True, verificar_base=True):
+    def iniciar_procesamiento(self, archivos, fecha_inicial, fecha_final, verificar_base=True):
         """Inicia el proceso de consolidación"""
         try:
             # Validaciones iniciales
@@ -93,33 +97,32 @@ class Controlador(QObject):
             self.archivos = self.clasificar_archivos(archivos)
             self.fecha_inicial = fecha_inicial
             self.fecha_final = fecha_final
-            self.actualizar_base = actualizar_base
             self.verificar_base = verificar_base
 
             # 1. Procesar procedimientos (20%)
             self.progress.emit(10, "Procesando procedimientos...")
             df_procedimientos = self.procesar_procedimientos()
             
-            # 2. Procesar personas (40%)
-            self.progress.emit(30, "Procesando personas...")
-            df_personas = self.procesar_personas(df_procedimientos)
+            self.progress.emit(20, "Procesando personas...")
+            df_detenidos , df_otros_delitos = self.procesar_personas(df_procedimientos)
             
-            # 3. Procesar incautaciones (60%)
-            self.progress.emit(50, "Procesando incautaciones...")
+            # 3. Procesar incautaciones (50%)
+            self.progress.emit(30, "Procesando incautaciones...")
             df_incautaciones = self.procesar_incautaciones(df_procedimientos)
             
-            # 4. Procesar operaciones (80%)
-            self.progress.emit(70, "Procesando operaciones...")
-            df_operaciones = self.procesar_operaciones()
+            # 4. Procesar operaciones (70%)
+            self.progress.emit(40, "Procesando operaciones...")
+            df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
             
-            # 5. Generar informe final (90%)
-            self.progress.emit(85, "Generando informe...")
-            self.generar_informe_consolidado()
+            self.progress.emit(50, "Procesando trata...")
+            df_trata = self.procesar_trata(df_procedimientos)
             
-            # 6. Actualizar base de datos si corresponde (95%)
-            if self.actualizar_base:
-                self.progress.emit(95, "Actualizando base de datos...")
-                self.actualizar_base_datos()
+            self.progress.emit(60, "Consolidando datos...")
+            dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
+            
+            self.progress.emit(80, "Generando informe...")
+            self.copiar_formato_template(dataframes )
+            
 
             # Completado
             self.progress.emit(100, "Procesamiento completado")
@@ -139,9 +142,9 @@ class Controlador(QObject):
     def clasificar_archivos(self, archivos):
         """Clasifica los archivos según su tipo"""
         clasificados = {
-            'procedimientos': None,
-            'personas': None,
-            'armas': None,
+            'procedimiento': None,
+            'persona':None,
+            'arma': None,
             'divisas': None,
             'narcotrafico': None,
             'objetos': None,
@@ -163,7 +166,7 @@ class Controlador(QObject):
         """Procesa los archivos de procedimientos"""
         self.progress.emit(12, "Leyendo archivo de procedimientos...")
         
-        df = pd.read_excel(self.archivos['procedimientos'])
+        df = pd.read_excel(self.archivos['procedimiento'])
         
         self.progress.emit(15, "Procesando procedimientos...")
         df_procedimientos = pd.DataFrame()
@@ -201,7 +204,7 @@ class Controlador(QObject):
     def procesar_personas(self, df_procedimientos):
         """Procesa los archivos de personas"""
         self.progress.emit(32, "Procesando personas y detenidos...")
-        df = pd.read_excel(self.archivos['personas'])
+        df = pd.read_excel(self.archivos['persona'])
         
         if df.empty:
             return pd.DataFrame()
@@ -212,7 +215,7 @@ class Controlador(QObject):
         df['UOSP'] = df['UOSP'].fillna(df['URSA'])
         df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
         # Paso 3: Coincidencia de UID entre excel_bajada_personas y df_geog_final
-        uid_coincidentes = df[df['ID_PROCEDIMIENTO'].isin(df['ID_PROCEDIMIENTO'])]
+        uid_coincidentes = df[df['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
         # Crear DataFrame de detenidos y aprendidos
         df_detenidos_aprendidos = pd.DataFrame()
@@ -233,27 +236,25 @@ class Controlador(QObject):
         print(df_detenidos_aprendidos.nunique())
         
         
-        
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
     
-            if not df.empty:
-                
-                df_otros_delitos = df_detenidos_aprendidos[df_detenidos_aprendidos['SITUACION_PROCESAL'] == 'VICTIMA']
-                # Filtro los que son victima de detenidos y aprendidos
-                df_detenidos_aprendidos_completado = df_detenidos_aprendidos[df_detenidos_aprendidos['SITUACION_PROCESAL'] != 'VICTIMA']
+        if not df.empty:
+            
+            df_otros_delitos = df_detenidos_aprendidos[df_detenidos_aprendidos['SITUACION_PROCESAL'] == 'VICTIMA']
+            # Filtro los que son victima de detenidos y aprendidos
+            df_detenidos_aprendidos_completado = df_detenidos_aprendidos[df_detenidos_aprendidos['SITUACION_PROCESAL'] != 'VICTIMA']
 
-                # Cambiar el nombre de algunas columnas en el DataFrame de víctimas
-                df_otros_delitos_completado = df_otros_delitos.rename(columns={
-                    'DELITO_IMPUTADO': 'TIPO_OTRO_DELITO',
-                    'GENERO': 'GENERO_VICTIMA',
-                    'EDAD': 'EDAD_VICTIMA',
-                }) # type: ignore
-                df_otros_delitos_completado["OBSERVACIONES"] ="-"
-                
-                self.CONTADOR['DETENIDOS_FINAL'] = len(df_detenidos_aprendidos_completado['ID_PROCEDIMIENTO'])
-                self.CONTADOR['VICTIMAS_FINAL'] = len(df_otros_delitos_completado['ID_PROCEDIMIENTO'])
-                
-                print(df_otros_delitos_completado.nunique())
+            # Cambiar el nombre de algunas columnas en el DataFrame de víctimas
+            df_otros_delitos_completado = df_otros_delitos.rename(columns={
+                'DELITO_IMPUTADO': 'TIPO_OTRO_DELITO',
+                'GENERO': 'GENERO_VICTIMA',
+                'EDAD': 'EDAD_VICTIMA',
+            }) # type: ignore
+            df_otros_delitos_completado["OBSERVACIONES"] ="-"
+            
+            self.CONTADOR['DETENIDOS_FINAL'] = len(df_detenidos_aprendidos_completado['ID_PROCEDIMIENTO'])
+            self.CONTADOR['VICTIMAS_FINAL'] = len(df_otros_delitos_completado['ID_PROCEDIMIENTO'])
+            
+            print(df_otros_delitos_completado.nunique())
                 
         return df_detenidos_aprendidos_completado, df_otros_delitos_completado
 
@@ -274,38 +275,40 @@ class Controlador(QObject):
         self.progress.emit(60, "Procesando narcotráfico...")
         df_narcotrafico = self.procesar_narcotrafico(df_procedimientos)
         
-        # Unir todas las incautaciones
-        return pd.concat([df_armas, df_divisas, df_objetos, df_vehiculos, df_narcotrafico])
+        df_incautaaciones = pd.concat([df_armas, df_divisas, df_objetos, df_vehiculos, df_narcotrafico])
+
+        
+        df_incautaaciones = df_incautaaciones[df_incautaaciones['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        return df_incautaaciones 
 
     def procesar_armas(self, df_procedimientos):
         """Procesa incautaciones de armas"""
-        df = pd.read_excel(self.archivos['armas'])
+        df = pd.read_excel(self.archivos['arma'])
         if df.empty:
             return pd.DataFrame()
             
         self.CONTADOR['BAJADA_ARMAS'] = len(df)
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
 
-            df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
-            df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-            df['TIPO_CAUSA_INTERNA'] = df.apply( procesar_tipo_causa_interna, axis=1)
-            df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['TIPO_CAUSA_INTERNA'] = df.apply( procesar_tipo_causa_interna, axis=1)
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
 
 
-            df_arma = pd.DataFrame()
-            df_arma['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-            df_arma['TIPO_INCAUTACION'] = "ARMAS"
-            df_arma['TIPO'] = df['TIPO_ARMA']
-            df_arma['SUBTIPO'] = "-"
-            df_arma['CANTIDAD'] = df.apply(procesar_cantidad_arma, axis=1)
-            df_arma['MEDIDAS'] = "UNIDADES"
-            df_arma['AFORO'] = "-"
-            df_arma['OBSERVACIONES'] = df.apply(procesar_observaciones_arma, axis=1)
+        df_arma = pd.DataFrame()
+        df_arma['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_arma['TIPO_INCAUTACION'] = "ARMAS"
+        df_arma['TIPO'] = df['TIPO_ARMA']
+        df_arma['SUBTIPO'] = "-"
+        df_arma['CANTIDAD'] = df.apply(procesar_cantidad_arma, axis=1)
+        df_arma['MEDIDAS'] = "UNIDADES"
+        df_arma['AFORO'] = "-"
+        df_arma['OBSERVACIONES'] = df.apply(procesar_observaciones_arma, axis=1)
 
-            df_arma_completado = df_arma[df_arma['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        df_arma_completado = df_arma[df_arma['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
-            self.CONTADOR['ARMAS_FINAL'] = len(df_arma['ID_PROCEDIMIENTO'])
-            print(df_arma_completado.nunique())
+        self.CONTADOR['ARMAS_FINAL'] = len(df_arma['ID_PROCEDIMIENTO'])
+        print(df_arma_completado.nunique())
 
         return df_arma_completado
 
@@ -316,29 +319,28 @@ class Controlador(QObject):
             return pd.DataFrame()
             
         self.CONTADOR['BAJADA_DIVISAS'] = len(df)
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
 
-            df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
-            df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-            df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
-            df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
 
-            df_divisa = pd.DataFrame()
-            df_divisa['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-            df_divisa['TIPO_INCAUTACION'] = "DIVISAS"
-            df_divisa['TIPO'] = df['TIPO_MONEDA'] 
-            df_divisa['SUBTIPO'] = "-"
-            df_divisa['CANTIDAD'] = df['CANTIDAD']
-            df_divisa['MEDIDAS'] = df['TIPO_MONEDA']
-            df_divisa['AFORO'] = df['VALOR_MONEDA'].fillna('-')
-            df_divisa['OBSERVACIONES'] = "-"
+        df_divisa = pd.DataFrame()
+        df_divisa['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_divisa['TIPO_INCAUTACION'] = "DIVISAS"
+        df_divisa['TIPO'] = df['TIPO_MONEDA'] 
+        df_divisa['SUBTIPO'] = "-"
+        df_divisa['CANTIDAD'] = df['CANTIDAD']
+        df_divisa['MEDIDAS'] = df['TIPO_MONEDA']
+        df_divisa['AFORO'] = df['VALOR_MONEDA'].fillna('-')
+        df_divisa['OBSERVACIONES'] = "-"
 
-            df_divisa_completado = df_divisa[df_divisa['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        df_divisa_completado = df_divisa[df_divisa['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
-            self.CONTADOR['DIVISAS_FINAL'] = len(df_divisa_completado['ID_PROCEDIMIENTO'])
-            print(df_divisa_completado.nunique())
+        self.CONTADOR['DIVISAS_FINAL'] = len(df_divisa_completado['ID_PROCEDIMIENTO'])
+        print(df_divisa_completado.nunique())
 
-            return df_divisa_completado
+        return df_divisa_completado
         
 
     def procesar_objetos(self, df_procedimientos):
@@ -349,29 +351,28 @@ class Controlador(QObject):
             
         self.CONTADOR['BAJADA_OBJETOS'] = len(df)
 
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
 
-            df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
-            df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-            df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
-            df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
 
-            df_objetos = pd.DataFrame()
-            df_objetos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-            df_objetos['TIPO_INCAUTACION'] = "OBJETOS"
-            df_objetos['TIPO'] = df['OBJETO_SECUESTRADO'] 
-            df_objetos['SUBTIPO'] = "-"
-            df_objetos['CANTIDAD'] = df['CANTIDAD']
-            df_objetos['MEDIDAS'] = df['MEDIDA']
-            df_objetos['AFORO'] = df['VALOR_MONEDA'].fillna('-')
-            df_objetos['OBSERVACIONES'] = "-"
+        df_objetos = pd.DataFrame()
+        df_objetos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_objetos['TIPO_INCAUTACION'] = "OBJETOS"
+        df_objetos['TIPO'] = df['OBJETO_SECUESTRADO'] 
+        df_objetos['SUBTIPO'] = "-"
+        df_objetos['CANTIDAD'] = df['CANTIDAD']
+        df_objetos['MEDIDAS'] = df['MEDIDA']
+        df_objetos['AFORO'] = df['VALOR_MONEDA'].fillna('-')
+        df_objetos['OBSERVACIONES'] = "-"
 
-            df_objetos_completado = df_objetos[df_objetos['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        df_objetos_completado = df_objetos[df_objetos['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
-            self.CONTADOR['OBJETOS_FINAL'] = len(df_objetos_completado['ID_PROCEDIMIENTO'])
-            print(df_objetos_completado.nunique())
+        self.CONTADOR['OBJETOS_FINAL'] = len(df_objetos_completado['ID_PROCEDIMIENTO'])
+        print(df_objetos_completado.nunique())
 
-            return df_objetos_completado
+        return df_objetos_completado
 
     def procesar_vehiculos(self, df_procedimientos):
         """Procesa incautaciones de vehículos"""
@@ -381,34 +382,52 @@ class Controlador(QObject):
             
         self.CONTADOR['BAJADA_VEHICULOS'] = len(df)
 
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
+        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
 
-            df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
-            df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-            df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
-            df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df_vehiculos = pd.DataFrame()
+        df_vehiculos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_vehiculos['TIPO_INCAUTACION'] = "VEHICULOS"
+        df_vehiculos['TIPO'] = df['TIPO_VEHICULO']
+        df_vehiculos['SUBTIPO'] = df['MARCA_VEHICULO']
+        df_vehiculos['CANTIDAD'] = 1
+        df_vehiculos['MEDIDAS'] = "UNIDADES"
+        df_vehiculos['AFORO'] = "-"
+        df_vehiculos['OBSERVACIONES'] = df.apply(observaciones_vehiculo, axis=1)
 
-            df_vehiculos = pd.DataFrame()
-            df_vehiculos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-            df_vehiculos['TIPO_INCAUTACION'] = "VEHICULOS"
-            df_vehiculos['TIPO'] = df['TIPO_VEHICULO']
-            df_vehiculos['SUBTIPO'] = df['MARCA_VEHICULO']
-            df_vehiculos['CANTIDAD'] = 1
-            df_vehiculos['MEDIDAS'] = "UNIDADES"
-            df_vehiculos['AFORO'] = "-"
-            df_vehiculos['OBSERVACIONES'] = df.apply(observaciones_vehiculo, axis=1)
+        df_vehiculos_completado = df_vehiculos[df_vehiculos['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
-            df_vehiculos_completado = df_vehiculos[df_vehiculos['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        self.CONTADOR['VEHICULOS_FINAL'] = len(df_vehiculos_completado['ID_PROCEDIMIENTO'])
 
-            self.CONTADOR['VEHICULOS_FINAL'] = len(df_vehiculos_completado['ID_PROCEDIMIENTO'])
-
-            return df_vehiculos_completado
-        pass
+        return df_vehiculos_completado
 
     def procesar_narcotrafico(self, df_procedimientos):
         """Procesa incautaciones de narcotráfico"""
-        # ...similar a procesar_armas...
-        pass
+        df = pd.read_excel(self.archivos['narcotrafico'])
+        if df.empty:
+            return pd.DataFrame()
+            
+        self.CONTADOR['BAJADA_NARCOTRAFICO'] = len(df)
+
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+
+        df_narcotrafico = pd.DataFrame()
+        df_narcotrafico['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_narcotrafico['TIPO_INCAUTACION'] = "ESTUPEFACIENTE"
+        df_narcotrafico['TIPO'] = df.apply(clasificar_tipo_sustancia, axis=1)
+        df_narcotrafico['SUBTIPO'] = "-"
+        df_narcotrafico[['CANTIDAD', 'MEDIDAS']] = df.apply(clasificar_medida, axis=1, result_type='expand')
+        df_narcotrafico['AFORO'] = "-"
+        df_narcotrafico['OBSERVACIONES'] = df.apply(observaciones_sustancia, axis=1)
+
+        df_narcotrafico_completado = df_narcotrafico[df_narcotrafico['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        self.CONTADOR['NARCOTRAFICO_FINAL'] = len(df_narcotrafico_completado['ID_PROCEDIMIENTO'])
+
+        return df_narcotrafico_completado
 
     def procesar_operaciones(self):
         """Procesa las operaciones y órdenes de servicio"""
@@ -427,6 +446,95 @@ class Controlador(QObject):
         
         return df_operaciones, df_controlados, df_afectados, df_codigos
 
+    def procesar_operaciones_principales(self, df):
+        """Procesa las operaciones principales"""
+        if df.empty:
+            return pd.DataFrame()
+        
+        # Procesar operaciones
+        df_operaciones = pd.DataFrame()
+        df_operaciones["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
+        df_operaciones["FUERZA_INTERVINIENTE"] = "PSA"
+        df_operaciones["ID_OPERATIVO"] = df["ID_OPERATIVO"]
+        df_operaciones["UNIDAD_INTERVINIENTE"] = df["UNIDAD_INTERVINIENTE"]
+        df_operaciones["DESCRIPCIÓN"] = df["DESCRIPCIÓN"]
+        df_operaciones["TIPO_INTERVENCION"] = df["TIPO_INTERVENCION"]
+        df_operaciones["PROVINCIA"] = df["PROVINCIA"].str.replace("_", " ", regex=False)
+        df_operaciones["DEPARTAMENTO O PARTIDO"] = df["DEPARTAMENTO O PARTIDO"].str.upper()
+        df_operaciones["LOCALIDAD"] = df["LOCALIDAD"]
+        df_operaciones["DIRECCION"] = df["DIRECCION"]
+        df_operaciones['FECHA'] = pd.to_datetime(df["FECHA"]).dt.date
+        df_operaciones['HORA'] = df['HORA'].apply(lambda x: x.strftime('%H:%M') if pd.notnull(x) else None)
+        df_operaciones["ZONA_SEGURIDAD_FRONTERAS"] = "-"
+        df_operaciones["PASO_FRONTERIZO"] = "-"
+        df_operaciones['OTRAS AGENCIAS INTERVINIENTES'] = df["OTRAS AGENCIAS INTERVINIENTES"]
+        df_operaciones['Observaciones - Detalles'] = "PATRULLAJE DINAMICO"
+        df_operaciones[['LATITUD', 'LONGITUD']] = df.apply(procesar_geog_oper, axis=1, result_type='expand')
+
+        return df_operaciones
+
+    def procesar_controlados(self, df):
+        """Procesa los datos de vehículos y personas controladas"""
+        if df.empty:
+            return pd.DataFrame()
+            
+        df_controlados = pd.DataFrame()
+        df_controlados["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
+        df_controlados["FUERZA_INTERVINIENTE"] = "PSA"
+        df_controlados["ID_OPERATIVO"] = df["ID_OPERATIVO"]
+        df_controlados["UNIDAD_INTERVINIENTE"] = df["UNIDAD_INTERVINIENTE"]
+        df_controlados["VEHICULOS_CONTROLADOS"] = df["VEHICULOS_CONTROLADOS"]
+        df_controlados["PERSONAS_CONTROLADAS"] = df["PERSONAS_CONTROLADAS"]
+        df_controlados["AVERIGUACIONES"] = df["CANT_AVERIGUACIONES_SECUESTRO"]
+        df_controlados["ANTECEDENTES"] = df["CANT_SOLICITUDES_ANTECEDENTES"]
+        
+        return df_controlados
+
+    def procesar_afectados(self, df):
+        """Procesa los datos del personal y elementos afectados"""
+        if df.empty:
+            return pd.DataFrame()
+            
+        df_afectados = pd.DataFrame()
+        df_afectados["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
+        df_afectados["FUERZA_INTERVINIENTE"] = "PSA"
+        df_afectados["ID_OPERATIVO"] = df["ID_OPERATIVO"]
+        df_afectados["UNIDAD_INTERVINIENTE"] = df["UNIDAD_INTERVINIENTE"]
+        df_afectados["CANT_EFECTIVOS"] = df["CANT_EFECTIVOS"]
+        df_afectados["CANT_VEHICULOS"] = df["CANT_AUTOS_CAMIONETAS"]
+        df_afectados["CANT_MOTOS"] = df["CANT_MOTOS"]
+        df_afectados["CANT_SCANNERS"] = df["CANT_SCANNERS"]
+        df_afectados["CANT_CANES"] = df["CANT_CANES"]
+        df_afectados["OTROS_ELEMENTOS"] = df.apply(self.procesar_otros_elementos, axis=1)
+        
+        return df_afectados
+
+    def procesar_otros_elementos(self, row):
+        """Procesa otros elementos afectados"""
+        elementos = []
+        if row["CANT_EMBARCACIONES"] > 0:
+            elementos.append(f"EMBARCACIONES: {row['CANT_EMBARCACIONES']}")
+        if row["CANT_CABALLOS"] > 0:
+            elementos.append(f"CABALLOS: {row['CANT_CABALLOS']}")
+        if row["CANT_MORPHRAPID"] > 0:
+            elementos.append(f"MORPHRAPID: {row['CANT_MORPHRAPID']}")
+        if row["CANT_LPR"] > 0:
+            elementos.append(f"LPR: {row['CANT_LPR']}")
+        
+        return " - ".join(elementos) if elementos else "-"
+
+    def procesar_codigos_operativos(self, df):
+        """Procesa los códigos operativos"""
+        if df.empty:
+            return pd.DataFrame()
+            
+        df_codigos = pd.DataFrame()
+        df_codigos["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
+        df_codigos["CODIGO_OPERATIVO"] = df["CODIGO_OPERATIVO"]
+        df_codigos["DESCRIPCION"] = df_codigos["CODIGO_OPERATIVO"].map(CODIGOS_OPERATIVOS)
+        
+        return df_codigos
+
     def procesar_trata(self, df_procedimientos):
         """Procesa casos de trata de personas"""
         self.progress.emit(82, "Procesando casos de trata...")
@@ -437,90 +545,114 @@ class Controlador(QObject):
             
         self.CONTADOR['BAJADA_TRATA'] = len(df)
 
-        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] != 0:
-            df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-            df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
-            
-            df_trata = pd.DataFrame()
-            df_trata['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-            df_trata['PROPOSITO_EXPLOTACION'] = df['MODALIDAD_EXPL'] 
-            df_trata['OBSERVACIONES'] = "-"
-            df_trata_final = df_trata[df_trata['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
-            self.CONTADOR['TRATA_FINAL'] = len(df_trata_final['ID_PROCEDIMIENTO'])
-            print(df_trata_final.nunique())
+        df['UOSP'] = df['UOSP'].fillna(df['URSA'])
+        df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        
+        df_trata = pd.DataFrame()
+        df_trata['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
+        df_trata['PROPOSITO_EXPLOTACION'] = df['MODALIDAD_EXPL'] 
+        df_trata['OBSERVACIONES'] = "-"
+        df_trata_final = df_trata[df_trata['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
+        self.CONTADOR['TRATA_FINAL'] = len(df_trata_final['ID_PROCEDIMIENTO'])
+        print(df_trata_final.nunique())
 
-            return df_trata_final
+        return df_trata_final
 
-    def generar_informe_consolidado(self):
-        """Genera el informe final consolidado"""
-        self.progress.emit(92, "Generando informe consolidado...")
+    def consolidar_datos(self, df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata, df_afectados, df_controlados, df_codigos):
+        """Consolida todos los datos procesados"""
+        # Unir datos de procedimientos y operaciones
+        df_geog_final = pd.concat([df_procedimientos, df_operaciones])
+        self.CONTADOR["GEOG_FINAL"] = len(df_geog_final)
 
-        try:
-            # Crear archivo Excel
-            wb = Workbook()
-<<<<<<< HEAD
-            wb.create_sheet("PROCEDIMIENTOS")
-            hoja_proc = wb["PROCEDIMIENTOS"]
-            
-=======
-            
-            # Hoja de Procedimientos
-            wb.create_sheet("PROCEDIMIENTOS")
-            hoja_proc = wb["PROCEDIMIENTOS"]
->>>>>>> parent of 5f289a8 (eliminar archivos de interfaz de usuario innecesarios)
-            for row in dataframe_to_rows(self.df_procedimientos, index=False, header=True):
-                hoja_proc.append(row)
+        # Realizar los merge necesarios
+        if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] > 0:
+            df_incautados_final = pd.merge(df_geog_final, df_incautaciones, on='ID_PROCEDIMIENTO', how='left')
+            df_detenidos_final = pd.merge(df_geog_final, df_detenidos, on='ID_PROCEDIMIENTO', how='left')
+            df_otros_delitos_final = pd.merge(df_geog_final, df_otros_delitos, on='ID_PROCEDIMIENTO', how='right')
+            df_trata_final = pd.merge(df_geog_final, df_trata, on='ID_PROCEDIMIENTO', how='right')
 
-            # Hoja de Detenidos/Aprehendidos
-            wb.create_sheet("DETENIDOS_APREHENDIDOS") 
-            hoja_det = wb["DETENIDOS_APREHENDIDOS"]
-            for row in dataframe_to_rows(self.df_detenidos, index=False, header=True):
-                hoja_det.append(row)
+        if self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] > 0:
+            df_afectados_final = pd.merge(df_geog_final, df_afectados, on='ID_PROCEDIMIENTO', how='left')
+            df_controlados_final = pd.merge(df_geog_final, df_controlados, on='ID_PROCEDIMIENTO', how='left')
+            df_codigos_final = pd.merge(df_geog_final, df_codigos, on='ID_PROCEDIMIENTO', how='left')
 
-            # Hoja de Otros Delitos
-            wb.create_sheet("OTROS DELITOS")
-            hoja_otros = wb["OTROS DELITOS"]
-            for row in dataframe_to_rows(self.df_otros_delitos, index=False, header=True):
-                hoja_otros.append(row)
+        
+        
+        dataframes = {
+                'GEOG. PROCEDIMIENTO': df_geog_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_geog_final' in locals() else pd.DataFrame(),
+                'VEHI. Y PERSO. CONTROLADAS': df_controlados_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_controlados_final' in locals() else pd.DataFrame(),
+                'PERSONAL Y ELEMENTOS AFECTADOS': df_afectados_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_afectados_final' in locals() else pd.DataFrame(),
+                'INCAUTACIONES': df_incautados_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_incautados_final' in locals() else pd.DataFrame(),
+                'DETENIDOS Y APREHENDIDOS': df_detenidos_final.reset_index(drop=True).fillna("").replace("", "-")if 'df_detenidos_final' in locals() else pd.DataFrame(),
+                'OTROS DELITOS': df_otros_delitos_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_otros_delitos_final' in locals() else pd.DataFrame(),
+                'TRATA O TRAFIC PERSONAS': df_trata_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_trata_final' in locals() else pd.DataFrame(),
+                'CODIGO OPERATIVO': df_codigos_final.reset_index(drop=True).fillna("").replace("", "-") if 'df_codigos_final' in locals() else pd.DataFrame(),
+            }
 
-            # Hoja de Incautaciones
-            wb.create_sheet("INCAUTACIONES")
-            hoja_inc = wb["INCAUTACIONES"]
-            for row in dataframe_to_rows(self.df_incautaciones, index=False, header=True):
-                hoja_inc.append(row)
+        return dataframes
+    
+    
+    
+    def copiar_formato_template(self, dataframes):
+        # 1. Cargar template
+        wb_template = load_workbook(TEMPLATE_PATH)
+        
+        # 2. Definir estilos base
+        header_style = {
+            'fill': PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid'),
+            'font': Font(bold=True, color='FFFFFF'),
+            'border': Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'), 
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            ),
+            'alignment': Alignment(horizontal='center', vertical='center')
+        }
+        
+        data_style = {
+            'border': Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'), 
+                bottom=Side(style='thin')
+            ),
+            'alignment': Alignment(horizontal='center', vertical='center')
+        }
+
+        # 3. Procesar cada hoja
+        for sheet_name, df in dataframes.items():
+            if sheet_name in wb_template.sheetnames:
+                sheet = wb_template[sheet_name]
+                template_sheet = wb_template[sheet_name]
                 
-            # Hoja de Trata
-            if self.df_trata is not None and not self.df_trata.empty:
-                wb.create_sheet("TRATA")
-                hoja_trata = wb["TRATA"]
-                for row in dataframe_to_rows(self.df_trata, index=False, header=True):
-                    hoja_trata.append(row)
+                # Copiar formatos de columnas
+                for column in range(1, template_sheet.max_column + 1):
+                    letter = get_column_letter(column)
+                    sheet.column_dimensions[letter].width = template_sheet.column_dimensions[letter].width
+                
+                # Escribir datos con formato
+                for i, row in df.iterrows():
+                    for j, value in enumerate(row, 1):
+                        cell = sheet.cell(row=i+4, column=j+1, value=value)
+                        
+                        # Aplicar estilo según posición
+                        if i == 0:
+                            for k, v in header_style.items():
+                                setattr(cell, k, v)
+                        else:
+                            for k, v in data_style.items():
+                                setattr(cell, k, v)
+                                
+                # Preservar fórmulas existentes         
+                for row in template_sheet.rows:
+                    for cell in row:
+                        if cell.value and str(cell.value).startswith('='):
+                            sheet[cell.coordinate].value = cell.value
 
-            # Eliminar hoja por defecto
-            wb.remove(wb['Sheet'])
-
-            # Ajustar ancho de columnas
-            for hoja in wb.sheetnames:
-                for column in wb[hoja].columns:
-                    max_length = 0
-                    for cell in column:
-                        try:
-                            if len(str(cell.value)) > max_length:
-                                max_length = len(str(cell.value))
-                        except:
-                            pass
-                    adjusted_width = (max_length + 2)
-                    wb[hoja].column_dimensions[column[0].column_letter].width = adjusted_width
-
-            # Guardar archivo
-            fecha_actual = datetime.now().strftime('%Y%m%d')
-            nombre_archivo = f'Consolidado_{fecha_actual}.xlsx'
-            wb.save(nombre_archivo)
-            
-            return nombre_archivo
-
-        except Exception as e:
-            raise Exception(f"Error generando informe consolidado: {str(e)}")
+        # 4. Guardar resultado
+        wb_template.save(OUTPUT_PATH)
+    
 
     def actualizar_base_datos(self):
         """Actualiza la base de datos con los nuevos registros"""
@@ -529,7 +661,7 @@ class Controlador(QObject):
 
             # Leer el archivo de base de datos
             try:
-                wb_base = load_workbook("BASE_DATOS.xlsx")
+                wb_base = load_workbook(BASE_PATH)
             except:
                 wb_base = Workbook()
                 wb_base.remove(wb_base.active)  # Eliminar hoja por defecto

@@ -58,10 +58,11 @@ class MainWindow(QMainWindow):
         # Inicializar lista de archivos y modelo
         self.file_list_model = []
         self.table_model = FileTableModel(self.file_list_model)
+        self.loaded_files = set()  # Para controlar archivos ya cargados
         
         # Configurar TableView
         self.ui.tableView.setModel(self.table_model)
-        self.ui.tableView.horizontalHeader().setStretchLastSection(True)
+        self.ui.tableView.horizontalHeader().setStretchLastSection(True)  # type: ignore
         
         # Conectar señales
         self.ui.btn_select_files.clicked.connect(self.select_files)
@@ -86,49 +87,85 @@ class MainWindow(QMainWindow):
             )
             
             if files:
-                total_files = len(files)
-                for i, file in enumerate(files, 1):
-                    # Actualizar progreso
-                    progress = int((i / total_files) * 90)  # De 10 a 100
+                # Filtrar archivos que ya están cargados
+                new_files = []
+                duplicates = []
+                for file in files:
+                    if file not in self.loaded_files:
+                        new_files.append(file)
+                    else:
+                        duplicates.append(Path(file).name)
+                
+                if duplicates:
+                    self.ui.label_status_process.setText(f"Archivos duplicados: {', '.join(duplicates)}")
+                    if not new_files:
+                        self.ui.progressBar.setVisible(False)
+                        return
+                
+                total_files = len(new_files)
+                for i, file in enumerate(new_files, 1):
+                    progress = int((i / total_files) * 90)
                     self.ui.progressBar.setValue(progress)
                     self.ui.label_status_process.setText(f"Cargando archivo {i} de {total_files}...")
                     
-                    # Agregar archivo a la lista
+                    # Agregar archivo a la lista y al set de control
                     self.file_list_model.append(file)
+                    self.loaded_files.add(file)
                 
-                # Actualizar tabla
+                # Actualizar tabla y contador
                 self.table_model = FileTableModel(self.file_list_model)
                 self.ui.tableView.setModel(self.table_model)
-                self.ui.status_label.setText(f"Archivos seleccionados: {len(self.file_list_model)}")
                 self.table_model.layoutChanged.emit()
+                
+                # Actualizar label con contador total
+                self.actualizar_contador()
                 
                 # Finalizar progreso
                 self.ui.progressBar.setValue(100)
-                self.ui.label_status_process.setText("Archivos cargados correctamente")
-                self.ui.progressBar.setVisible(False)
-            else:
-                self.ui.progressBar.setVisible(False)
-                self.ui.label_status_process.setText("")
+                self.ui.label_status_process.setText(
+                    f"Se agregaron {len(new_files)} archivos nuevos" + 
+                    (f" ({len(duplicates)} duplicados ignorados)" if duplicates else "")
+                )
+            
+            self.ui.progressBar.setVisible(False)
                 
         except Exception as e:
             self.ui.progressBar.setVisible(False)
             self.show_error("Error al seleccionar archivos", str(e))
 
     def delete_files(self):
-        """Elimina los archivos seleccionados de la tabla"""
         try:
-            selected_indexes = self.ui.tableView.selectionModel().selectedIndexes()
+            selected_indexes = self.ui.tableView.selectionModel().selectedIndexes() # type: ignore
             if not selected_indexes:
                 raise Exception("No se han seleccionado archivos para eliminar")
             
+            # Obtener archivos seleccionados
             selected_files = [self.file_list_model[index.row()] for index in selected_indexes]
+            
+            # Eliminar de ambas estructuras
             self.file_list_model = [f for f in self.file_list_model if f not in selected_files]
+            self.loaded_files = self.loaded_files - set(selected_files)
+            
+            # Actualizar tabla
             self.ui.tableView.clearSelection()
             self.table_model = FileTableModel(self.file_list_model)
             self.ui.tableView.setModel(self.table_model)
             self.table_model.layoutChanged.emit()
+            
+            # Actualizar contador
+            self.actualizar_contador()
+            
         except Exception as e:
             self.show_error("Error al eliminar archivos", str(e))
+
+    def actualizar_contador(self):
+        """Actualiza el contador de archivos en el label"""
+        total = len(self.file_list_model)
+        if total == 0:
+            self.ui.status_label.setText("No hay archivos cargados")
+        else:
+            tipos = len({Path(f).stem.split('_')[0].lower() for f in self.file_list_model})
+            self.ui.status_label.setText(f"Archivos cargados: {total} ({tipos} tipos)")
 
     def show_error(self, title, message):
         """Muestra un diálogo de error"""
@@ -151,7 +188,7 @@ class MainWindow(QMainWindow):
             fecha_final = self.ui.date_end.date().toPyDate()
             
             self.ui.progressBar.setVisible(True)
-            self.ui.progressBar.setValue(50)
+            self.ui.progressBar.setValue(5)
             self.ui.label_status_process.setText("Procesando...")
             
             resultado = self.controlador.iniciar_procesamiento(

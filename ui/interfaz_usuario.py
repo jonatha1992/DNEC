@@ -76,11 +76,7 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addWidget(self.date_end)
 
-        self.chk_actualizar = QCheckBox(self.layoutWidget)
-        self.chk_actualizar.setObjectName(u"chk_actualizar")
-        self.chk_actualizar.setChecked(True)
 
-        self.verticalLayout.addWidget(self.chk_actualizar)
 
         self.chk_verificar = QCheckBox(self.layoutWidget)
         self.chk_verificar.setObjectName(u"chk_verificar")
@@ -122,7 +118,6 @@ class Ui_MainWindow(object):
         self.btn_select_files.setText(QCoreApplication.translate("MainWindow", u"Seleccionar", None))
         self.label_start.setText(QCoreApplication.translate("MainWindow", u"Fecha inicial:", None))
         self.label_end.setText(QCoreApplication.translate("MainWindow", u"Fecha final:", None))
-        self.chk_actualizar.setText(QCoreApplication.translate("MainWindow", u"Actualizar base de datos", None))
         self.chk_verificar.setText(QCoreApplication.translate("MainWindow", u"Verificar con base existente", None))
         self.btn_process.setText(QCoreApplication.translate("MainWindow", u"Procesar", None))
         self.btn_save.setText(QCoreApplication.translate("MainWindow", u"Guardar", None))

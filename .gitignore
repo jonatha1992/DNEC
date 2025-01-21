@@ -1,5 +1,6 @@
 /bajadas
 /db
 /informes
-/__pycache__
+**/__pycache__/
+**/**/__pycache__
 .env
