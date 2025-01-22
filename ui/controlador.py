@@ -9,9 +9,9 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 from openpyxl.utils import get_column_letter
 
 
-BASE_PATH = 'db/base_informada.xlsx'
-TEMPLATE_PATH = 'models/modelo_informe.xlsx'
-OUTPUT_PATH = 'informes/'
+PATH_BASE = 'db/base_informada.xlsx'
+PATH_TEMPLATE = 'models/modelo_informe.xlsx'
+PATH_OUTPUT = 'informes/'
 
 class Controlador(QObject):
     # Señales para comunicar progreso
@@ -595,7 +595,7 @@ class Controlador(QObject):
     
     def copiar_formato_template(self, dataframes):
         # 1. Cargar template
-        wb_template = load_workbook(TEMPLATE_PATH)
+        wb_template = load_workbook(PATH_TEMPLATE)
         
         # 2. Definir estilos base
         header_style = {
@@ -651,7 +651,7 @@ class Controlador(QObject):
                             sheet[cell.coordinate].value = cell.value
 
         # 4. Guardar resultado
-        wb_template.save(OUTPUT_PATH)
+        wb_template.save(PATH_OUTPUT)
     
 
     def actualizar_base_datos(self):
@@ -661,7 +661,7 @@ class Controlador(QObject):
 
             # Leer el archivo de base de datos
             try:
-                wb_base = load_workbook(BASE_PATH)
+                wb_base = load_workbook(PATH_BASE)
             except:
                 wb_base = Workbook()
                 wb_base.remove(wb_base.active)  # Eliminar hoja por defecto

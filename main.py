@@ -1,10 +1,16 @@
-from pathlib import Path
+import warnings
 import pandas as pd
+from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 from PyQt6.QtCore import QAbstractTableModel, Qt
 from ui.interfaz_usuario import Ui_MainWindow
 from ui.controlador import Controlador
 import sys
+
+# Suppress specific openpyxl warning about Data Validation
+warnings.filterwarnings('ignore', category=UserWarning, 
+                       module='openpyxl.worksheet._reader')
+
 class FileTableModel(QAbstractTableModel):
     def __init__(self, files=None):
         super(FileTableModel, self).__init__()
