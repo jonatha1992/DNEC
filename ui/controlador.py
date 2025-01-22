@@ -120,8 +120,15 @@ class Controlador(QObject):
             self.progress.emit(60, "Consolidando datos...")
             dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
             
+
+            self.progress.emit(80, "filtrar con lo informado")
+            dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
+            
+
             self.progress.emit(80, "Generando informe...")
             self.copiar_formato_template(dataframes )
+            
+            
             
 
             # Completado
@@ -197,6 +204,8 @@ class Controlador(QObject):
                                             'ZONA_SEGURIDAD_FRONTERAS', 'PASO_FRONTERIZO', 'LATITUD', 'LONGITUD',
                                             'FECHA', 'HORA', 'OTRAS AGENCIAS INTERVINIENTES', 'Observaciones - Detalles']]
         self.CONTADOR['BAJADA_PROCEDIMIENTOS'] = len(df)
+        
+        
         
         
         return df_procedimientos_completado

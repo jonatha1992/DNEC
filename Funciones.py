@@ -588,8 +588,10 @@ def clasificar_medida(row):
         return [peso, "GRAMOS"]
     elif pd.isna(unidad) and pd.isna(peso):
         return [0, "VERIFIQUE"]
-    else:
+    elif pd.isna(unidad) and not pd.isna(peso):
         return [unidad, "UNIDADES"]
+    else:
+        return [peso, "GRAMOS"]
 
 
 def observaciones_sustancia(row):
