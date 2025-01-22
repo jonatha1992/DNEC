@@ -110,12 +110,12 @@ class Controlador(QObject):
             self.progress.emit(30, "Procesando incautaciones...")
             df_incautaciones = self.procesar_incautaciones(df_procedimientos)
             
-            # 4. Procesar operaciones (70%)
-            self.progress.emit(40, "Procesando operaciones...")
-            df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
-            
             self.progress.emit(50, "Procesando trata...")
             df_trata = self.procesar_trata(df_procedimientos)
+            # 4. Procesar operaciones (70%)
+            self.progress.emit(70, "Procesando operaciones...")
+            df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
+            
             
             self.progress.emit(60, "Consolidando datos...")
             dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
@@ -315,29 +315,44 @@ class Controlador(QObject):
     def procesar_divisas(self, df_procedimientos):
         """Procesa incautaciones de divisas"""
         df = pd.read_excel(self.archivos['divisas'])
+        excel_bajada_procedimientos_generales = pd.read_excel(self.archivos['procedimiento'])
         if df.empty:
             return pd.DataFrame()
             
         self.CONTADOR['BAJADA_DIVISAS'] = len(df)
+        
 
-        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        excel_bajada_procedimientos_generales['PARTE_ANIO'] = excel_bajada_procedimientos_generales['NUMERO_PARTE'].astype(str) + "/" + excel_bajada_procedimientos_generales['ANIO_PARTE'].astype(str)
+        df['PARTE_ANIO'] = df['NUMERO_PARTE'].astype(str) + "/" + df['ANIO_PARTE'].astype(str)
+
         df['UOSP'] = df['UOSP'].fillna(df['URSA'])
-        df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
+
+        df = pd.merge(df, 
+                                    excel_bajada_procedimientos_generales[['PARTE_ANIO', 'TIPO_CAUSA_INTERNA']], 
+                                    on='PARTE_ANIO', 
+                                    how='left')
+
         df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[~pd.isnull(df['TOTAL_DIVISAS_SECUESTRADAS'])]
+
+
+        cantidad_por_uid = df.groupby(['ID_PROCEDIMIENTO', 'TIPO_DIVISA'], as_index=False)['TOTAL_DIVISAS_SECUESTRADAS'].sum()
+        
 
         df_divisa = pd.DataFrame()
         df_divisa['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
         df_divisa['TIPO_INCAUTACION'] = "DIVISAS"
-        df_divisa['TIPO'] = df['TIPO_MONEDA'] 
+        df_divisa['TIPO'] = cantidad_por_uid['TIPO_DIVISA']
         df_divisa['SUBTIPO'] = "-"
-        df_divisa['CANTIDAD'] = df['CANTIDAD']
-        df_divisa['MEDIDAS'] = df['TIPO_MONEDA']
-        df_divisa['AFORO'] = df['VALOR_MONEDA'].fillna('-')
+        df_divisa['CANTIDAD'] = cantidad_por_uid['TOTAL_DIVISAS_SECUESTRADAS']
+        df_divisa['MEDIDAS'] = "UNIDADES"
+        df_divisa['AFORO'] ="-"
         df_divisa['OBSERVACIONES'] = "-"
 
         df_divisa_completado = df_divisa[df_divisa['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
         self.CONTADOR['DIVISAS_FINAL'] = len(df_divisa_completado['ID_PROCEDIMIENTO'])
+        
         print(df_divisa_completado.nunique())
 
         return df_divisa_completado
@@ -352,20 +367,23 @@ class Controlador(QObject):
         self.CONTADOR['BAJADA_OBJETOS'] = len(df)
 
 
-        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df = df[df["ESTADO"] == "SECUESTRADO"]
         df['UOSP'] = df['UOSP'].fillna(df['URSA'])
         df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
         df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[df['TIPO_OBJETO'].isin(TIPO_OBJETO)]
+        df = df[~pd.isnull(df['CANTIDAD'])]
 
         df_objetos = pd.DataFrame()
         df_objetos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-        df_objetos['TIPO_INCAUTACION'] = "OBJETOS"
-        df_objetos['TIPO'] = df['OBJETO_SECUESTRADO'] 
+        df_objetos['TIPO_INCAUTACION'] = "MERCADERIA"
+        df_objetos['TIPO'] = df['TIPO_OBJETO'] 
         df_objetos['SUBTIPO'] = "-"
         df_objetos['CANTIDAD'] = df['CANTIDAD']
-        df_objetos['MEDIDAS'] = df['MEDIDA']
-        df_objetos['AFORO'] = df['VALOR_MONEDA'].fillna('-')
-        df_objetos['OBSERVACIONES'] = "-"
+        df_objetos['MEDIDAS'] = "UNIDADES"
+        df_objetos['AFORO'] = "-"
+        df_objetos['OBSERVACIONES'] = df['OBJETO']
+
 
         df_objetos_completado = df_objetos[df_objetos['ID_PROCEDIMIENTO'].isin(df_procedimientos['ID_PROCEDIMIENTO'])]
 
@@ -375,23 +393,23 @@ class Controlador(QObject):
         return df_objetos_completado
 
     def procesar_vehiculos(self, df_procedimientos):
-        """Procesa incautaciones de vehículos"""
+        #* """Procesa incautaciones de vehículos"""
         df = pd.read_excel(self.archivos['vehiculos'])
         if df.empty:
             return pd.DataFrame()
             
         self.CONTADOR['BAJADA_VEHICULOS'] = len(df)
 
-        df = df[df["TIPO_ESTADO_OBJETO"] == "SECUESTRADO"]
+        df = df[df["VEHICULO_ESTADO"] == "SECUESTRADO"]
         df['UOSP'] = df['UOSP'].fillna(df['URSA'])
         df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
         df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
 
         df_vehiculos = pd.DataFrame()
         df_vehiculos['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
-        df_vehiculos['TIPO_INCAUTACION'] = "VEHICULOS"
-        df_vehiculos['TIPO'] = df['TIPO_VEHICULO']
-        df_vehiculos['SUBTIPO'] = df['MARCA_VEHICULO']
+        df_vehiculos['TIPO_INCAUTACION'] = "SECUESTRO DE VEHICULOS"
+        df_vehiculos['TIPO'] = df['VEHICULO_TIPO']
+        df_vehiculos['SUBTIPO'] = "-"
         df_vehiculos['CANTIDAD'] = 1
         df_vehiculos['MEDIDAS'] = "UNIDADES"
         df_vehiculos['AFORO'] = "-"
@@ -414,6 +432,7 @@ class Controlador(QObject):
         df['UOSP'] = df['UOSP'].fillna(df['URSA'])
         df['TIPO_CAUSA_INTERNA'] = df.apply(procesar_tipo_causa_interna, axis=1)
         df['ID_PROCEDIMIENTO'] = df.apply(generar_uid_sigpol, axis=1)
+        df = df[~pd.isnull(df['TIPO_ESTUPEFACIENTE'])]
 
         df_narcotrafico = pd.DataFrame()
         df_narcotrafico['ID_PROCEDIMIENTO'] = df['ID_PROCEDIMIENTO']
