@@ -442,11 +442,10 @@ def procesar_caratula(row):
     caratula_judicial = row['CARATULAJUDICIAL']
     caratula_interna = row['CARATULAINTERNA']
     
-    if caratula_judicial == "" or caratula_judicial == "S/D" or caratula_judicial == "A/S" or caratula_judicial == "N/C":
+    if pd.isna(caratula_judicial) or caratula_judicial == "S/D" or caratula_judicial == "A/S" or caratula_judicial == "N/C":
         return caratula_interna
-    else:
-        return caratula_judicial
-
+    return caratula_judicial
+    
 def procesar_juzgado(row):
     juzgado = row['JUZGADO']
     fiscalia = row['FISCALIA']
