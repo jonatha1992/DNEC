@@ -114,7 +114,6 @@ class Controlador(QObject):
             self.progress.emit(50, "Procesando trata...")
             df_trata = self.procesar_trata(df_procedimientos)
             
-            
             # 4. Procesar operaciones (70%)
             self.progress.emit(60, "Procesando operaciones...")
             df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
@@ -123,7 +122,7 @@ class Controlador(QObject):
             self.progress.emit(70, "Consolidando datos...")
             dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
             
-            self.progress.emit(80, "Ordenando...")
+            self.progress.emit(80, "Ordenando.....")
             dataframes = self.ordenar_columnas( dataframes)
             
             self.progress.emit(90, "Generando informe...")
@@ -527,7 +526,7 @@ class Controlador(QObject):
         df_operaciones[['LATITUD', 'LONGITUD']] = df.apply(procesar_geog_oper, axis=1, result_type='expand')
             
         
-                # Reemplazar "S/D" y "N/C" por "-"
+        # Reemplazar "S/D" y "N/C" por "-"
         df_operaciones.replace(["S/D", "N/C"], "-", inplace=True)
 
         # Reemplazar los valores vacíos (NaN) por "-"
@@ -566,8 +565,8 @@ class Controlador(QObject):
             return pd.DataFrame()
             
         df_afectados = pd.DataFrame()
-        df_afectados["FUERZA_INTERVINIENTE"] = "PSA"
         df_afectados["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
+        df_afectados["FUERZA_INTERVINIENTE"] = "PSA"
         df_afectados["ID_OPERATIVO"] = df["ID_OPERATIVO"]
         df_afectados["UNIDAD_INTERVINIENTE"] = df["UNIDAD_INTERVINIENTE"]
         df_afectados["DESCRIPCIÓN"] = df["DESCRIPCIÓN"]
