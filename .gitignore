@@ -1,5 +1,4 @@
 **/__pycache__/
-.pytest_pycache__/
 .env
 bajadas/
 db/
