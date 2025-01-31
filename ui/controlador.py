@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import pprint
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Alignment
@@ -660,9 +661,10 @@ class Controlador(QObject):
             df_trata_final = pd.merge(df_geog_final, df_trata, on='ID_PROCEDIMIENTO', how='right') if len(df_trata) > 0 else pd.DataFrame()
 
         if self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] > 0:
-            df_afectados_final = pd.merge(df_geog_final, df_afectados, on='ID_PROCEDIMIENTO', how='left')
-            df_controlados_final = pd.merge(df_geog_final, df_controlados, on='ID_PROCEDIMIENTO', how='left')
-            df_codigos_final = pd.merge(df_geog_final, df_codigos, on='ID_PROCEDIMIENTO', how='left')
+            df_afectados_final = pd.merge(df_geog_final, df_afectados, on='ID_PROCEDIMIENTO', how='left',     suffixes=('', '_afectados'))  # Evitar sufijos por defecto
+            df_controlados_final = pd.merge(df_geog_final, df_controlados, on='ID_PROCEDIMIENTO', how='left',     suffixes=('', '_controlados'))  # Evitar sufijos por defecto
+            df_codigos_final = pd.merge(df_geog_final, df_codigos, on='ID_PROCEDIMIENTO', how='left',suffixes=('', '_codigos'))
+
 
         
         
@@ -808,7 +810,7 @@ class Controlador(QObject):
 
     def ordenar_columnas(self, dataframes):
         """Orders columns for each sheet according to template"""
-        
+    
         COLUMN_ORDERS = {
             "GEOG. PROCEDIMIENTO": [
                 'FUERZA_INTERVINIENTE', 'ID_OPERATIVO', 'ID_PROCEDIMIENTO', 'UNIDAD_INTERVINIENTE',
@@ -858,13 +860,16 @@ class Controlador(QObject):
         }
         
         ordered_dfs = {}
-    
+
         try:
             for sheet_name, df in dataframes.items():
                 if df is None or df.empty:
                     ordered_dfs[sheet_name] = df
                     continue
-                    
+                
+                # Print columns of the current DataFrame
+                pprint.pprint(f"Columns in {sheet_name}: {df.columns.tolist()}")
+                
                 if sheet_name in COLUMN_ORDERS:
                     # Check if all required columns exist
                     missing_cols = set(COLUMN_ORDERS[sheet_name]) - set(df.columns)
@@ -886,6 +891,3 @@ class Controlador(QObject):
             
         return ordered_dfs
 
-
-        
-        
