@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 from PyQt6.QtCore import QAbstractTableModel, Qt
 from ui.interfaz_usuario import Ui_MainWindow
 from ui.controlador import Controlador
+from ui.worker import ProcessingWorker
 import sys
 
 # Suppress specific openpyxl warning about Data Validation
@@ -185,7 +186,6 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"No se pudieron guardar los resultados: {e}")
 
     def process_data(self):
-        """Procesa los datos según las fechas seleccionadas"""
         try:
             if not self.file_list_model:
                 raise Exception("No se han seleccionado archivos")
@@ -194,19 +194,42 @@ class MainWindow(QMainWindow):
             fecha_final = self.ui.date_end.date().toPyDate()
             
             self.ui.progressBar.setVisible(True)
-            self.ui.progressBar.setValue(5)
-            self.ui.label_status_process.setText("Procesando...")
+            self.ui.progressBar.setValue(0)
+            self.ui.label_status_process.setText("Iniciando...")
             
-            resultado = self.controlador.iniciar_procesamiento(
+            # Deshabilitar controles
+            self.ui.btn_process.setEnabled(False)
+            self.ui.btn_select_files.setEnabled(False)
+            
+            # Configurar worker
+            self.worker = ProcessingWorker(
+                self.controlador,
                 self.file_list_model,
                 fecha_inicial,
                 fecha_final
             )
-            # Aquí puedes agregar el código para manejar el resultado del procesamiento
-            self.ui.progressBar.setValue(100)
-            self.ui.label_status_process.setText("Procesamiento completado")
+            
+            # Conectar señales
+            self.controlador.progress.connect(self.ui.progressBar.setValue)
+            self.controlador.status.connect(self.ui.label_status_process.setText)
+            self.controlador.finished.connect(self.on_process_finished)
+            self.controlador.error.connect(self.on_process_error)
+            
+            # Iniciar procesamiento
+            self.worker.start()
+            
         except Exception as e:
             self.show_error("Error al procesar datos", str(e))
+
+    def on_process_finished(self, success):
+        self.ui.btn_process.setEnabled(True)
+        self.ui.btn_select_files.setEnabled(True)
+        self.ui.label_status_process.setText("Procesamiento completado")
+        
+    def on_process_error(self, error_msg):
+        self.show_error("Error al procesar datos", error_msg)
+        self.ui.btn_process.setEnabled(True)
+        self.ui.btn_select_files.setEnabled(True)
 
 # Código adicional para iniciar la aplicación
 if __name__ == "__main__":

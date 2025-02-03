@@ -1,13 +1,13 @@
 import os
 from datetime import datetime
-import pprint
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Alignment
 from PyQt6.QtCore import QObject, pyqtSignal
-from Funciones import *
+from funciones import *
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 from openpyxl.utils import get_column_letter
+from .señales import Signals
 
 
 PATH_BASE = 'db/base_informada.xlsx'
@@ -16,9 +16,10 @@ PATH_FILE_OUTPUT = ''
 
 class Controlador(QObject):
     # Señales para comunicar progreso
-    progress = pyqtSignal(int, str)
+    progress = pyqtSignal(int, str)  # For progress value and status message
+    status = pyqtSignal(str)
+    finished = pyqtSignal(bool)
     error = pyqtSignal(str)
-    completed = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
@@ -27,6 +28,7 @@ class Controlador(QObject):
         self.fecha_final = None
         self.verificar_base = True
         self.CONTADOR = self.inicializar_contador()
+        self.signals = Signals()
         
     def inicializar_contador(self):
         """Inicializa el diccionario contador"""
@@ -104,7 +106,6 @@ class Controlador(QObject):
             self.progress.emit(10, "Procesando procedimientos...")
             df_procedimientos = self.procesar_procedimientos()
             
-            # 3. Procesar incautaciones (20%)
             self.progress.emit(20, "Procesando personas...")
             df_detenidos , df_otros_delitos = self.procesar_personas(df_procedimientos)
             
@@ -115,7 +116,7 @@ class Controlador(QObject):
             self.progress.emit(50, "Procesando trata...")
             df_trata = self.procesar_trata(df_procedimientos)
             
-            # 4. Procesar operaciones (70%)
+            
             self.progress.emit(60, "Procesando operaciones...")
             df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
     
@@ -123,7 +124,7 @@ class Controlador(QObject):
             self.progress.emit(70, "Consolidando datos...")
             dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
             
-            self.progress.emit(80, "Ordenando.....")
+            self.progress.emit(80, "Ordenando...")
             dataframes = self.ordenar_columnas( dataframes)
             
             self.progress.emit(90, "Generando informe...")
@@ -131,7 +132,7 @@ class Controlador(QObject):
             
             # Completado
             self.progress.emit(100, "Procesamiento completado")
-            self.completed.emit({
+            self.finished.emit({
                 'estado': 'éxito',
                 'mensaje': 'Procesamiento completado correctamente',
                 'fecha_proceso': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -523,11 +524,11 @@ class Controlador(QObject):
         df_operaciones["ZONA_SEGURIDAD_FRONTERAS"] = "-"
         df_operaciones["PASO_FRONTERIZO"] = "-"
         df_operaciones['OTRAS AGENCIAS INTERVINIENTES'] =  df["OTRAS AGENCIAS INTERVINIENTES"]
-        df_operaciones['Observaciones - Detalles'] = "PATRULLAJE DINAMICO"
+        df_operaciones['Observaciones - Detalles'] = "-"
         df_operaciones[['LATITUD', 'LONGITUD']] = df.apply(procesar_geog_oper, axis=1, result_type='expand')
             
         
-        # Reemplazar "S/D" y "N/C" por "-"
+                # Reemplazar "S/D" y "N/C" por "-"
         df_operaciones.replace(["S/D", "N/C"], "-", inplace=True)
 
         # Reemplazar los valores vacíos (NaN) por "-"
@@ -566,8 +567,8 @@ class Controlador(QObject):
             return pd.DataFrame()
             
         df_afectados = pd.DataFrame()
-        df_afectados["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
         df_afectados["FUERZA_INTERVINIENTE"] = "PSA"
+        df_afectados["ID_PROCEDIMIENTO"] = df["ID_PROCEDIMIENTO"]
         df_afectados["ID_OPERATIVO"] = df["ID_OPERATIVO"]
         df_afectados["UNIDAD_INTERVINIENTE"] = df["UNIDAD_INTERVINIENTE"]
         df_afectados["DESCRIPCIÓN"] = df["DESCRIPCIÓN"]
@@ -661,8 +662,8 @@ class Controlador(QObject):
             df_trata_final = pd.merge(df_geog_final, df_trata, on='ID_PROCEDIMIENTO', how='right') if len(df_trata) > 0 else pd.DataFrame()
 
         if self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] > 0:
-            df_afectados_final = pd.merge(df_geog_final, df_afectados, on='ID_PROCEDIMIENTO', how='left',     suffixes=('', '_afectados'))  # Evitar sufijos por defecto
-            df_controlados_final = pd.merge(df_geog_final, df_controlados, on='ID_PROCEDIMIENTO', how='left',     suffixes=('', '_controlados'))  # Evitar sufijos por defecto
+            df_afectados_final = pd.merge(df_geog_final, df_afectados, on='ID_PROCEDIMIENTO', how='left',suffixes=('', '_afectados'))
+            df_controlados_final = pd.merge(df_geog_final, df_controlados, on='ID_PROCEDIMIENTO', how='left',suffixes=('', '_controlados'))
             df_codigos_final = pd.merge(df_geog_final, df_codigos, on='ID_PROCEDIMIENTO', how='left',suffixes=('', '_codigos'))
 
 
@@ -810,7 +811,7 @@ class Controlador(QObject):
 
     def ordenar_columnas(self, dataframes):
         """Orders columns for each sheet according to template"""
-    
+        
         COLUMN_ORDERS = {
             "GEOG. PROCEDIMIENTO": [
                 'FUERZA_INTERVINIENTE', 'ID_OPERATIVO', 'ID_PROCEDIMIENTO', 'UNIDAD_INTERVINIENTE',
@@ -860,16 +861,13 @@ class Controlador(QObject):
         }
         
         ordered_dfs = {}
-
+    
         try:
             for sheet_name, df in dataframes.items():
                 if df is None or df.empty:
                     ordered_dfs[sheet_name] = df
                     continue
-                
-                # Print columns of the current DataFrame
-                pprint.pprint(f"Columns in {sheet_name}: {df.columns.tolist()}")
-                
+                    
                 if sheet_name in COLUMN_ORDERS:
                     # Check if all required columns exist
                     missing_cols = set(COLUMN_ORDERS[sheet_name]) - set(df.columns)
@@ -890,4 +888,3 @@ class Controlador(QObject):
             return dataframes
             
         return ordered_dfs
-

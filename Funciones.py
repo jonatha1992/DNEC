@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import re 
 import datetime
-from Parametros import *
+from parametros import *
 from datetime import datetime 
 
 
