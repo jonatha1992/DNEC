@@ -105,9 +105,6 @@ class Controlador(QObject):
             
             self.progress.emit(20)
             if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] > 0:
-                self.error.emit("No hay procedimientos nuevos para procesar")
-                
-                
                 self.status.emit("Procesando personas...")
                 df_detenidos , df_otros_delitos = self.procesar_personas(df_procedimientos)
                 
@@ -118,8 +115,13 @@ class Controlador(QObject):
                 self.progress.emit(50)
                 self.status.emit("Procesando trata...")
                 df_trata = self.procesar_trata(df_procedimientos)
-            
-            
+            else:
+                self.progress.emit(50)
+                self.status.emit("No hay procedimientos nuevos para procesar")
+                df_detenidos = pd.DataFrame()
+                df_otros_delitos = pd.DataFrame()
+                df_incautaciones = pd.DataFrame()
+                df_trata = pd.DataFrame()
             
             
             
@@ -196,7 +198,8 @@ class Controlador(QObject):
         
         # df = pd.read_excel(self.archivos['procedimiento'])
         df = filtrar_procedimientos_generales(self.archivos['procedimiento'])
-        self.progress.emit(15, "Procesando procedimientos...")
+        self.progress.emit(15)
+        self.status.emit( "Procesando procedimientos...")
         df_procedimientos = pd.DataFrame()
         df_procedimientos['ID_OPERATIVO'] = df.apply(procesar_causa_judicial, axis=1)
         df_procedimientos['FUERZA_INTERVINIENTE'] = "PSA"
@@ -494,17 +497,18 @@ class Controlador(QObject):
         self.status.emit( "Procesando operaciones...")
         df = pd.read_excel(self.archivos['operaciones'], sheet_name="ORDEN_SERVICIOS", skiprows=1)
         self.CONTADOR['BAJADA_ORDEN_SERVICIOS'] = len(df)
-        df_operaciones = self.procesar_ordenes_servicios(df)
+        
         
         if self.verificar_base == True:
-            df_operaciones = self.filtrar_con_base(df_operaciones)
+            df = self.filtrar_con_base(df)
         
-        self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] = len(df_operaciones)
+        self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] = len(df)
         if self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] == 0:
+            
             self.error.emit("No hay órdenes de servicio nuevas para procesar") 
             return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
-        # Procesar datos relacionados
+        df_operaciones = self.procesar_ordenes_servicios(df)
         df_controlados = self.procesar_controlados(df)
         df_afectados = self.procesar_afectados(df)
         df_codigos = self.procesar_codigos_operativos(df)
