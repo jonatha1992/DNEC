@@ -2,10 +2,9 @@ import warnings
 import pandas as pd
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
-from PyQt6.QtCore import QAbstractTableModel, Qt
+from PyQt6.QtCore import QAbstractTableModel, Qt, QThread
 from ui.interfaz_usuario import Ui_MainWindow
 from ui.controlador import Controlador
-from ui.worker import ProcessingWorker
 import sys
 
 # Suppress specific openpyxl warning about Data Validation
@@ -201,30 +200,21 @@ class MainWindow(QMainWindow):
             self.ui.btn_process.setEnabled(False)
             self.ui.btn_select_files.setEnabled(False)
             
-            # Configurar worker
-            self.worker = ProcessingWorker(
-                self.controlador,
-                self.file_list_model,
-                fecha_inicial,
-                fecha_final
-            )
-            
             # Conectar señales
             self.controlador.progress.connect(self.ui.progressBar.setValue)
             self.controlador.status.connect(self.ui.label_status_process.setText)
-            self.controlador.finished.connect(self.on_process_finished)
             self.controlador.error.connect(self.on_process_error)
             
-            # Iniciar procesamiento
-            self.worker.start()
+            # Iniciar procesamiento sin hilo separado
+            self.controlador.iniciar_procesamiento(self.file_list_model, fecha_inicial, fecha_final ,self.ui.chk_verificar.isChecked()) 
             
+            self.ui.label_status_process.setText("Finalizado...")
+            self.ui.progressBar.setVisible(False)
+            self.ui.btn_process.setEnabled(True)
+            self.ui.btn_select_files.setEnabled(True)
         except Exception as e:
             self.show_error("Error al procesar datos", str(e))
 
-    def on_process_finished(self, success):
-        self.ui.btn_process.setEnabled(True)
-        self.ui.btn_select_files.setEnabled(True)
-        self.ui.label_status_process.setText("Procesamiento completado")
         
     def on_process_error(self, error_msg):
         self.show_error("Error al procesar datos", error_msg)

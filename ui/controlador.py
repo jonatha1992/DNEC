@@ -7,16 +7,16 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from funciones import *
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 from openpyxl.utils import get_column_letter
-from .señales import Signals
-
+pd.set_option('future.no_silent_downcasting', True)
 
 PATH_BASE = 'db/base_informada.xlsx'
 PATH_TEMPLATE = 'models/modelo_informe.xlsx'
 PATH_FILE_OUTPUT = ''
+# Configuración para evitar el FutureWarning
 
 class Controlador(QObject):
     # Señales para comunicar progreso
-    progress = pyqtSignal(int, str)  # For progress value and status message
+    progress = pyqtSignal(int)  # For progress value and status message
     status = pyqtSignal(str)
     finished = pyqtSignal(bool)
     error = pyqtSignal(str)
@@ -26,15 +26,12 @@ class Controlador(QObject):
         self.archivos = {}
         self.fecha_inicial = None
         self.fecha_final = None
-        self.verificar_base = True
+        self.verificar_base = False
         self.CONTADOR = self.inicializar_contador()
-        self.signals = Signals()
         
     def inicializar_contador(self):
         """Inicializa el diccionario contador"""
         return {
-            "OPERATIVOS_BASE":0,
-            "PROCEDIMIENTOS_BASE":0,
             "FECHA_MENOR_BASE":datetime,
             "FECHA_MAYOR_BASE":datetime,
             'PROCEDIMIENTOS_NUEVOS': 0,
@@ -89,7 +86,7 @@ class Controlador(QObject):
         
         return True
 
-    def iniciar_procesamiento(self, archivos, fecha_inicial, fecha_final, verificar_base=True):
+    def iniciar_procesamiento(self, archivos, fecha_inicial, fecha_final, verificar_base=False):
         """Inicia el proceso de consolidación"""
         try:
             # Validaciones iniciales
@@ -102,42 +99,48 @@ class Controlador(QObject):
             self.fecha_final = fecha_final.strftime('%d-%m-%Y')
             self.verificar_base = verificar_base
 
-            # 1. Procesar procedimientos (10%)
-            self.progress.emit(10, "Procesando procedimientos...")
+            self.progress.emit(10)
+            self.status.emit("Procesando procedimientos...")
             df_procedimientos = self.procesar_procedimientos()
             
-            self.progress.emit(20, "Procesando personas...")
-            df_detenidos , df_otros_delitos = self.procesar_personas(df_procedimientos)
+            self.progress.emit(20)
+            if self.CONTADOR['PROCEDIMIENTOS_NUEVOS'] > 0:
+                self.error.emit("No hay procedimientos nuevos para procesar")
+                
+                
+                self.status.emit("Procesando personas...")
+                df_detenidos , df_otros_delitos = self.procesar_personas(df_procedimientos)
+                
+                self.progress.emit(30)
+                self.status.emit("Procesando incautaciones...")
+                df_incautaciones = self.procesar_incautaciones(df_procedimientos)
+                
+                self.progress.emit(50)
+                self.status.emit("Procesando trata...")
+                df_trata = self.procesar_trata(df_procedimientos)
             
-
-            self.progress.emit(30, "Procesando incautaciones...")
-            df_incautaciones = self.procesar_incautaciones(df_procedimientos)
-            
-            self.progress.emit(50, "Procesando trata...")
-            df_trata = self.procesar_trata(df_procedimientos)
             
             
-            self.progress.emit(60, "Procesando operaciones...")
+            
+            
+            self.progress.emit(60)
+            self.status.emit("Procesando operaciones...")
             df_operaciones, df_controlados, df_afectados, df_codigos = self.procesar_operaciones()
     
-            
-            self.progress.emit(70, "Consolidando datos...")
+            self.progress.emit(70)
+            self.status.emit("Consolidando datos...")
             dataframes = self.consolidar_datos( df_procedimientos, df_operaciones, df_incautaciones, df_detenidos, df_otros_delitos, df_trata , df_afectados, df_controlados, df_codigos)
             
-            self.progress.emit(80, "Ordenando...")
+            self.progress.emit(80)
+            self.status.emit("Ordenando...")
             dataframes = self.ordenar_columnas( dataframes)
             
-            self.progress.emit(90, "Generando informe...")
+            self.progress.emit(90)
+            self.status.emit("Generando informe...")
             self.copiar_formato_template(dataframes)
             
-            # Completado
-            self.progress.emit(100, "Procesamiento completado")
-            self.finished.emit({
-                'estado': 'éxito',
-                'mensaje': 'Procesamiento completado correctamente',
-                'fecha_proceso': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'estadisticas': self.CONTADOR
-            })
+            self.progress.emit(100)
+            self.status.emit("Procesamiento completado")
             
             return True
             
@@ -190,10 +193,9 @@ class Controlador(QObject):
 
     def procesar_procedimientos(self):
         """Procesa los archivos de procedimientos"""
-        self.progress.emit(12, "Leyendo archivo de procedimientos...")
         
-        df = pd.read_excel(self.archivos['procedimiento'])
-        
+        # df = pd.read_excel(self.archivos['procedimiento'])
+        df = filtrar_procedimientos_generales(self.archivos['procedimiento'])
         self.progress.emit(15, "Procesando procedimientos...")
         df_procedimientos = pd.DataFrame()
         df_procedimientos['ID_OPERATIVO'] = df.apply(procesar_causa_judicial, axis=1)
@@ -218,7 +220,8 @@ class Controlador(QObject):
         df_procedimientos['LONGITUD'] = df_procedimientos['LONGITUD'].astype(str).str.replace(',', '.')
 
         
-        df_procedimientos = self.filtrar_con_base(df_procedimientos)
+        if self.verificar_base == True:
+            df_procedimientos = self.filtrar_con_base(df_procedimientos)
         
         df_procedimientos_completado = df_procedimientos[['FUERZA_INTERVINIENTE', 'ID_OPERATIVO', 'ID_PROCEDIMIENTO',
                                             'UNIDAD_INTERVINIENTE', 'DESCRIPCIÓN', 'TIPO_INTERVENCION',
@@ -234,7 +237,6 @@ class Controlador(QObject):
 
     def procesar_personas(self, df_procedimientos):
         """Procesa los archivos de personas"""
-        self.progress.emit(32, "Procesando personas y detenidos...")
         df = pd.read_excel(self.archivos['persona'])
         
         if df.empty:
@@ -292,19 +294,24 @@ class Controlador(QObject):
     def procesar_incautaciones(self, df_procedimientos):
         
         """Procesa todas las incautaciones"""
-        self.progress.emit(52, "Procesando armas...")
+        self.progress.emit(52)
+        self.status.emit( "Procesando armas...")
         df_armas = self.procesar_armas(df_procedimientos)
         
-        self.progress.emit(54, "Procesando divisas...")
+        self.progress.emit(54)
+        self.status.emit( "Procesando divisas...")
         df_divisas = self.procesar_divisas(df_procedimientos)
         
-        self.progress.emit(56, "Procesando objetos...")
+        self.progress.emit(56)
+        self.status.emit( "Procesando objetos...")
         df_objetos = self.procesar_objetos(df_procedimientos)
         
-        self.progress.emit(58, "Procesando vehículos...")
+        self.progress.emit(58)
+        self.status.emit( "Procesando vehículos...")
         df_vehiculos = self.procesar_vehiculos(df_procedimientos)
         
-        self.progress.emit(60, "Procesando narcotráfico...")
+        self.progress.emit(60)
+        self.status.emit( "Procesando narcotráfico...")
         df_narcotrafico = self.procesar_narcotrafico(df_procedimientos)
         
         df_incautaaciones = pd.concat([df_armas, df_divisas, df_objetos, df_vehiculos, df_narcotrafico])
@@ -482,14 +489,21 @@ class Controlador(QObject):
 
     def procesar_operaciones(self):
         """Procesa las operaciones y órdenes de servicio"""
-        self.progress.emit(72, "Procesando operaciones...")
+        
+        self.progress.emit(72)
+        self.status.emit( "Procesando operaciones...")
         df = pd.read_excel(self.archivos['operaciones'], sheet_name="ORDEN_SERVICIOS", skiprows=1)
-        df = self.filtrar_con_base(df)
-        
-        
-        
+        self.CONTADOR['BAJADA_ORDEN_SERVICIOS'] = len(df)
         df_operaciones = self.procesar_ordenes_servicios(df)
+        
+        if self.verificar_base == True:
+            df_operaciones = self.filtrar_con_base(df_operaciones)
+        
         self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] = len(df_operaciones)
+        if self.CONTADOR['ORDEN_SERVICIOS_NUEVOS'] == 0:
+            self.error.emit("No hay órdenes de servicio nuevas para procesar") 
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        
         # Procesar datos relacionados
         df_controlados = self.procesar_controlados(df)
         df_afectados = self.procesar_afectados(df)
@@ -500,7 +514,7 @@ class Controlador(QObject):
 
     def procesar_ordenes_servicios(self, df):
         """Procesa los datos de vehículos y personas controladas"""
-        self.CONTADOR['BAJADA_ORDEN_SERVICIOS'] = len(df)
+        
         # Usar .strftime('%H:%M') en cada valor para obtener solo la hora y el minuto
         if df.empty:
             return pd.DataFrame()
@@ -528,7 +542,7 @@ class Controlador(QObject):
         df_operaciones[['LATITUD', 'LONGITUD']] = df.apply(procesar_geog_oper, axis=1, result_type='expand')
             
         
-                # Reemplazar "S/D" y "N/C" por "-"
+        # Reemplazar "S/D" y "N/C" por "-"
         df_operaciones.replace(["S/D", "N/C"], "-", inplace=True)
 
         # Reemplazar los valores vacíos (NaN) por "-"
@@ -618,7 +632,8 @@ class Controlador(QObject):
 
     def procesar_trata(self, df_procedimientos):
         """Procesa casos de trata de personas"""
-        self.progress.emit(82, "Procesando casos de trata...")
+        self.progress.emit(82)
+        self.progress.emit( "Procesando casos de trata...")
         df = pd.read_excel(self.archivos['trata'])
         
         if df.empty:
@@ -741,8 +756,10 @@ class Controlador(QObject):
 
         # 4. Guardar resultado
         PATH_FILE_OUTPUT = f'informes/Informe_{self.fecha_inicial}_AL_{self.fecha_final}.xlsx'
-
         wb_template.save(PATH_FILE_OUTPUT)
+        
+        # Abrir el archivo Excel usando el programa predeterminado del sistema
+        os.startfile(os.path.abspath(PATH_FILE_OUTPUT))
     
     def actualizar_base_datos(self):
         """Actualiza la base de datos con los nuevos registros"""

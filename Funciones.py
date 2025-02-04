@@ -207,7 +207,6 @@ def filtrar_procedimientos_generales (ruta_archivo):
     
     
     df["UID"] = df.apply(generar_uid_sigpol,axis=1)
-    cantidad_partes_inical = df['UID'].count()
     cantidad_partes = df['UID'].count()
 
     df.drop_duplicates(subset='UID', keep='first', inplace=True)
