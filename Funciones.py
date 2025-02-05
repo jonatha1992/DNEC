@@ -34,6 +34,26 @@ def obtener_ruta_bajada(nombre_clave):
     return archivo_encontrado
 
 
+def filtrar_por_fecha(df : pd.DataFrame, columna_fecha:str , fecha_minima:datetime , fecha_maxima :datetime) -> pd.DataFrame:
+    """
+    Filtra un DataFrame por una columna de fecha, manteniendo solo las filas
+    donde la fecha está entre fecha_minima y fecha_maxima.
+
+    Args:
+    df (pd.DataFrame): DataFrame a filtrar.
+    columna_fecha (str): Nombre de la columna que contiene las fechas.
+    fecha_minima (str): Fecha mínima en formato 'dd-mm-yyyy'.
+    fecha_maxima (str): Fecha máxima en formato 'dd-mm-yyyy'.
+
+    Returns:
+    pd.DataFrame: DataFrame filtrado.
+    """
+    fecha_minima = pd.to_datetime(fecha_minima, format='%d-%m-%Y')
+    fecha_maxima = pd.to_datetime(fecha_maxima, format='%d-%m-%Y')
+    return df[(df[columna_fecha] >= fecha_minima) & (df[columna_fecha] <= fecha_maxima)]
+
+# Uso de la función para filtrar el DataFrame
+
 def generar_uid_sigpol(row):
         tipo = str(row['TIPO_CAUSA_INTERNA'])
         numero_parte = str(row['NUMERO_PARTE'])
