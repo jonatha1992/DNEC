@@ -258,6 +258,36 @@ def leer_excel_a_df(worksheet) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=titulos)
     return df
 
+def procesar_control_personal_sigipol(row: pd.Series) -> tuple:
+    """
+    Procesa los controles de personal según SIGIPOL.
+
+    Args:
+        row (pd.Series): Fila del DataFrame.
+
+    Returns:
+        tuple: Tupla con cantidad efectivos, autos/camionetas y scanners
+    """
+    tipo_procedimiento = str(row['TIPO_PROCEDIMIENTO'])
+    lugar_nivel_2 = str(row['LUGAR_CATALOGADO_NIVEL_2'])
+    union = tipo_procedimiento + " - " + lugar_nivel_2
+
+    if pd.isna(tipo_procedimiento):
+        return ("-", "-", "-")
+
+    respuesta = CONTROL_PERSONAL_SIGIPOL.get(union, {
+        "CANT_EFECTIVOS": "-",
+        "CANT_AUTOS_CAMIONETAS": "-", 
+        "CANT_SCANNERS": "-"
+    })
+
+    return (
+        respuesta["CANT_EFECTIVOS"],
+        respuesta["CANT_AUTOS_CAMIONETAS"],
+        respuesta["CANT_SCANNERS"]
+    )
+    
+    
 def procesar_causa_judicial(row: pd.Series) -> str:
     """
     Procesa la causa judicial basada en los valores de las columnas.
