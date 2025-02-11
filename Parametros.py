@@ -388,6 +388,379 @@ GEOS_UNIDADES = {'SFO': {'LATITUD': -34.4554449, 'LONGITUD': -58.5862883},
  'RCQ': {'LATITUD': -29.207194, 'LONGITUD': -59.6793836}}
 
 
+CONTROL_PERSONAL_SIGIPOL= {
+        "CONTROL PREVENTIVO - PATIO DE VALIJAS": {
+            "CANT_EFECTIVOS": 6,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": 1
+        },
+        "CONTROL PREVENTIVO - PREEMBARQUE": {
+            "CANT_EFECTIVOS": 6,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": 1
+        },
+        "CONTROL PREVENTIVO - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - NO CORRESPONDE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - RUTA DE ACCESO AL AEROPUERTO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - CALLE DE RODAJE O PISTA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - ESTACIONAMIENTO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - PLATAFORMA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - ESTACION DE SERVICIO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - NO CORRESPONDE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE ALLANAMIENTO - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 8,
+            "CANT_AUTOS_CAMIONETAS": 2,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE ALLANAMIENTO - TERMINAL DE CARGAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE ALLANAMIENTO / DETENCIÓN - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 8,
+            "CANT_AUTOS_CAMIONETAS": 2,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE APERTURA - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE PRESENTACIÓN - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE SECUESTRO - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": 1,
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - OTRO LUGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - AERONAVE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - HALL PUBLICO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - PLATAFORMA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - ARRIBOS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - BOXES DE MIGRACIONES": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - ESTACIONAMIENTO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - VEREDA / PERGOLA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - NO CORRESPONDE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - PATIO DE VALIJAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - PREEMBARQUE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - HALL RESTRINGIDO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - S/D": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - TERMINAL DE CARGAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - SECTOR ADUANERO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - RUTA DE ACCESO AL AEROPUERTO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - CALLE DE RODAJE O PISTA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "DENUNCIA - HANGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - VEREDA / PERGOLA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - TERMINAL DE CARGAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - HALL PUBLICO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - ARRIBOS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - AERONAVE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - BOXES DE MIGRACIONES": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - HALL RESTRINGIDO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - SECTOR ADUANERO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - S/D": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "CONTROL PREVENTIVO - HANGAR": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - HALL PUBLICO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - PREEMBARQUE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - S/D": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - VEREDA / PERGOLA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - AERONAVE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - PATIO DE VALIJAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "MANDATO JUDICIAL - ARRIBOS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE ALLANAMIENTO - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE APERTURA - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE APERTURA - PATIO DE VALIJAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - HALL PUBLICO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - PREEMBARQUE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - BOXES DE MIGRACIONES": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - VEREDA / PERGOLA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - ARRIBOS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - SECTOR ADUANERO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE DETENCIÓN - AERONAVE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - ARRIBOS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - PREEMBARQUE": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - ESTACIONAMIENTO": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE REQUISA - TERMINAL DE CARGAS": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        },
+        "ORDEN DE SECUESTRO - SECTOR PRIVADO/OFICINA": {
+            "CANT_EFECTIVOS": 4,
+            "CANT_AUTOS_CAMIONETAS": "-",
+            "CANT_SCANNERS": "-"
+        }
+    }
+
 
 CODIGOS_OPERATIVOS = {
     "1": "BARRRIOS SEGUROS",
