@@ -2,5 +2,6 @@
 .env
 bajadas/
 db/
-informes/
+informes_semanales/
+informes_mensuales/
 models/
