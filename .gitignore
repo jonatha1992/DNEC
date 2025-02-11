@@ -1,6 +1,8 @@
 **/__pycache__/
-.env
+.pytest_cache/
+.venv
 bajadas/
 db/
-informes/
+informes_semanales/
+informes_mensuales/
 models/
