@@ -1,10 +1,15 @@
 import glob
 import os
+import warnings
 import pandas as pd
 import re 
 import datetime
-from parametros import *
+from Parametros import *
 from datetime import datetime 
+
+warnings.filterwarnings('ignore', category=UserWarning, 
+                       module='openpyxl.worksheet._reader')
+
 
 def obtener_ruta_bajada(nombre_clave: str) -> str:
     """
@@ -336,7 +341,6 @@ def filtrar_procedimientos_generales(ruta_archivo: str) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame filtrado.
     """
-    cantidad_partes_inical = 0
     cantidad_partes = 0
     cantidad_partes_duplicados = 0
     cantidad_partes_no_disponible = 0
@@ -495,7 +499,7 @@ def colocar_guion_espacio(texto: str) -> str:
     match_year = re.search(r"(\d{4})", texto)
     if match_year:
         year = match_year.group(0)
-        texto = texto[len(year):].strip()  # Recortar el año del texto
+        texto = texto.len(year).strip()  # Recortar el año del texto
     print(f"Año encontrado: {year}")
 
     # Extraer sufijo al final (número entre paréntesis)
@@ -674,6 +678,29 @@ def procesar_tipo_delito(row: pd.Series) -> str:
     clasificion_2 = row['CLASIFICACION_NIVEL_2']
     union = clasificion_1 + " - " + clasificion_2
     return DELITOS.get(union, union)
+
+def procesar_tipo_delito_codigo( delitos_codigos, row: pd.Series) -> str:
+    """
+    Procesa el tipo de delito y devuelve su código correspondiente.
+
+    Args:
+        row (pd.Series): Fila del DataFrame.
+
+    Returns:
+        str: Código del tipo de delito procesado.
+    """
+    clasificion_1 = row['CLASIFICACION_NIVEL_1']
+    clasificion_2 = row['CLASIFICACION_NIVEL_2']
+    clasificion_3 = row['CLASIFICACION_NIVEL_3']
+
+    # Crear la clave concatenando las clasificaciones
+    if pd.isna(clasificion_3) or str(clasificion_3).strip() == '':
+        key = f"{clasificion_1} - {clasificion_2}"
+    else:
+        key = f"{clasificion_1} - {clasificion_2} - {clasificion_3}"
+    
+    # Retornar el valor del diccionario o la clave si no existe
+    return delitos_codigos.get(key, key)
 
 def procesar_caratula(row: pd.Series) -> str:
     """
@@ -901,3 +928,41 @@ def observaciones_sustancia(row: pd.Series) -> str:
         return f"{tipo_sustancia}" 
     else:
         return  "-"
+
+def cargar_delitos_codigos_desde_excel(ruta_archivo: str) -> dict:
+    """
+    Carga los códigos de delitos desde un archivo Excel y crea un diccionario para mapeo.
+    
+    Args:
+        ruta_archivo (str): Ruta al archivo Excel que contiene la matriz de delitos.
+        
+    Returns:
+        dict: Diccionario donde las claves son valores de la columna KEY y 
+              los valores son los correspondientes de la columna VALOR.
+    """
+    try:
+        # Cargar el archivo Excel, específicamente la hoja MATRIZ
+        df = pd.read_excel(ruta_archivo, sheet_name="DELITOS_CODIGO")
+        
+        # Verificar si las columnas necesarias existen
+        if "KEY" not in df.columns or "VALOR" not in df.columns:
+            print(f"Error: El archivo no contiene las columnas KEY y VALOR necesarias.")
+            return {}
+        
+        # Inicializar el diccionario
+        diccionario = {}
+        
+        # Iterar a través de las filas y crear las entradas del diccionario
+        for _, row in df.iterrows():
+            # Obtener la clave y el valor
+            key = str(row["KEY"])
+            valor = str(row["VALOR"])
+            
+            # Solo agregar al diccionario si la clave no está vacía
+            if key and key != 'nan' and key != 'None':
+                diccionario[key] = valor
+
+        return diccionario
+    except Exception as e:
+        print(f"Error al cargar los códigos de delitos: {e}")
+        return {}
