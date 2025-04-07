@@ -58,6 +58,7 @@ def filtrar_por_fecha(df: pd.DataFrame, columna_fecha: str, fecha_minima: dateti
 def generar_uid_sigpol(row: pd.Series) -> str:
     """
     Genera un UID basado en los valores de las columnas del DataFrame.
+    
 
     Args:
         row (pd.Series): Fila del DataFrame.
@@ -105,7 +106,7 @@ def procesar_tipo_procedimiento(row: pd.Series) -> str:
     """
     tipo = row['TIPO_PROCEDIMIENTO']
     if pd.isna(tipo):
-        return ""
+        return "ORDEN POLICIAL"
     elif tipo == "DENUNCIA"  or tipo == "CONTROL PREVENTIVO" :
         return "ORDEN POLICIAL"
     else:
@@ -278,7 +279,7 @@ def procesar_control_personal_sigipol(row: pd.Series) -> tuple:
     union = tipo_procedimiento + " - " + lugar_nivel_2
 
     if pd.isna(tipo_procedimiento):
-        return ("-", "-", "-")
+        return ("4", "-", "-")
 
     respuesta = CONTROL_PERSONAL_SIGIPOL.get(union, {
         "CANT_EFECTIVOS": "-",
