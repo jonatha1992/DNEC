@@ -282,7 +282,7 @@ def procesar_control_personal_sigipol(row: pd.Series) -> tuple:
         return ("4", "-", "-")
 
     respuesta = CONTROL_PERSONAL_SIGIPOL.get(union, {
-        "CANT_EFECTIVOS": "-",
+        "CANT_EFECTIVOS": "4",
         "CANT_AUTOS_CAMIONETAS": "-", 
         "CANT_SCANNERS": "-"
     })
